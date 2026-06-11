@@ -71,7 +71,9 @@
 
     <div id="scanStatus" class="small" style="text-align:center;min-height:16px;margin:-4px 0 8px"></div>
 
-    <button class="btn btn-pri" id="btnScan">📷 Escanear código de barras</button>
+    <button class="btn btn-pri" id="btnPhoto">📸 Tomar foto del código (mejor en iPhone)</button>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" />
+    <button class="btn btn-sec" id="btnScan" style="margin-top:8px">🎥 Escanear en vivo</button>
     <button class="btn btn-sec" id="btnTorch" style="display:none;margin-top:8px">🔦 Linterna</button>
 
     <div class="row">
@@ -103,6 +105,45 @@ btnScan.addEventListener("click", () => scanning ? stopScan() : startScan());
 document.getElementById("btnLookup").addEventListener("click", () => {
   const v = document.getElementById("upcInput").value.trim();
   if (v) lookup(v);
+});
+
+// Solo formatos de retail (UPC/EAN) — con dígito verificador, no se leen mal.
+function retailHints() {
+  const h = new Map();
+  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+    ZXing.BarcodeFormat.UPC_A,
+    ZXing.BarcodeFormat.UPC_E,
+    ZXing.BarcodeFormat.EAN_13,
+    ZXing.BarcodeFormat.EAN_8
+  ]);
+  h.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  return h;
+}
+
+// MÉTODO RECOMENDADO EN iPHONE: tomar una foto con la cámara nativa de iOS
+// (enfoca perfecto) y leer esa imagen nítida. Mucho más confiable que el
+// video en vivo, que en Safari sale borroso.
+const btnPhoto = document.getElementById("btnPhoto");
+const photoInput = document.getElementById("photoInput");
+btnPhoto.addEventListener("click", () => { if (scanning) stopScan(); photoInput.click(); });
+photoInput.addEventListener("change", async () => {
+  const file = photoInput.files && photoInput.files[0];
+  if (!file) return;
+  setStatus("Leyendo la foto…", "#8888AA");
+  const reader = new ZXing.BrowserMultiFormatReader(retailHints());
+  const url = URL.createObjectURL(file);
+  try {
+    const result = await reader.decodeFromImageUrl(url);
+    const code = result.getText();
+    setStatus("✓ Código: " + code, "#00C853");
+    document.getElementById("upcInput").value = code;
+    lookup(code);
+  } catch (e) {
+    setStatus("No pude leer el código en la foto. Sacala bien de cerca y nítida, o escribí el número a mano.", "#FF9100");
+  } finally {
+    URL.revokeObjectURL(url);
+    photoInput.value = "";
+  }
 });
 
 let frameCount = 0;
@@ -264,7 +305,16 @@ async function lookup(upc) {
   }
 
   if (!data || !data.items || data.items.length === 0) {
-    out.innerHTML = '<div class="note">No encontré datos para <b>' + upc + '</b>. Cargá el producto a mano en eBay/Amazon.</div>';
+    const ebaySold = "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(upc) + "&LH_Sold=1&LH_Complete=1";
+    const google = "https://www.google.com/search?q=" + encodeURIComponent(upc);
+    out.innerHTML =
+      '<div class="note">No hay datos en la base para <b>' + upc + '</b>.<br>' +
+      '👉 Confirmá que ese número coincida con el código <b>impreso en el producto</b> (no el sticker amarillo de Walmart).<br><br>' +
+      'Igual podés ver cuánto vale buscándolo directo:' +
+      '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">' +
+      '<a class="btn btn-pri" style="text-decoration:none;text-align:center;line-height:44px" target="_blank" rel="noopener" href="' + ebaySold + '">💰 Ver vendidos en eBay (precios reales)</a>' +
+      '<a class="btn btn-sec" style="text-decoration:none;text-align:center;line-height:44px" target="_blank" rel="noopener" href="' + google + '">🔎 Buscar en Google</a>' +
+      '</div></div>';
     return;
   }
 
