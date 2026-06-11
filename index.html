@@ -105,15 +105,42 @@ document.getElementById("btnLookup").addEventListener("click", () => {
 async function startScan() {
   out.innerHTML = "";
   try {
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    // Pistas: limitamos a los formatos de retail (UPC/EAN) + Code128/39 que usa
+    // Walmart, y activamos TRY_HARDER para que enganche códigos algo borrosos.
+    const hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E,
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39
+    ]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+
+    // 2do parámetro = ms entre intentos (más bajo = escanea más seguido).
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
     scanning = true;
     btnScan.textContent = "Detener";
     btnScan.className = "btn btn-sec";
     video.style.display = "block";
     camIdle.style.display = "none";
     laser.style.display = "block";
+
+    // Cámara trasera, alta resolución (código nítido) y enfoque continuo.
+    // focusMode va en "advanced" para que sea opcional y no falle si el
+    // dispositivo no lo soporta.
+    const constraints = {
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        advanced: [{ focusMode: "continuous" }, { focusDistance: 0.1 }]
+      }
+    };
+
     await codeReader.decodeFromConstraints(
-      { video: { facingMode: "environment" } },
+      constraints,
       video,
       (result, err) => {
         if (result) {
@@ -124,6 +151,15 @@ async function startScan() {
         }
       }
     );
+
+    // Si la cámara soporta enfoque/zoom manual, lo dejamos en modo continuo.
+    try {
+      const track = video.srcObject && video.srcObject.getVideoTracks()[0];
+      const caps = track && track.getCapabilities && track.getCapabilities();
+      if (caps && caps.focusMode && caps.focusMode.includes("continuous")) {
+        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+      }
+    } catch (_) {}
   } catch (e) {
     stopScan();
     camMsg.textContent = e.name === "NotAllowedError"
