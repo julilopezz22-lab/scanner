@@ -152,11 +152,12 @@ async function lookup(upc) {
   out.innerHTML = '<div class="loading">Buscando producto…</div>';
   let data = null;
   try {
-    // Intento directo a UPCitemdb (trial, sin key). Si CORS lo bloquea, mostramos aviso.
-    const r = await fetch("https://api.upcitemdb.com/prod/trial/lookup?upc=" + encodeURIComponent(upc));
+    // Consulta a nuestro backend en Vercel (/api/lookup), que a su vez consulta
+    // UPCitemdb del lado del servidor para esquivar el bloqueo CORS.
+    const r = await fetch("/api/lookup?upc=" + encodeURIComponent(upc));
     data = await r.json();
   } catch (e) {
-    out.innerHTML = '<div class="err">⚠️ No se pudo consultar la base de productos desde este entorno (bloqueo CORS o de red). En la versión desplegada en Vercel esto se resuelve con la función /api/lookup. Probá ahí.</div>';
+    out.innerHTML = '<div class="err">⚠️ No se pudo consultar la base de productos (sin red, o el backend /api/lookup no está desplegado). Si abriste el index.html suelto, subilo a Vercel para que funcione la búsqueda.</div>';
     return;
   }
 
