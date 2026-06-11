@@ -108,6 +108,8 @@ document.getElementById("btnLookup").addEventListener("click", () => {
 let frameCount = 0;
 let videoTrack = null;
 let torchOn = false;
+let lastCandidate = null;
+let candidateCount = 0;
 const status = document.getElementById("scanStatus");
 const btnTorch = document.getElementById("btnTorch");
 
@@ -120,16 +122,15 @@ function setStatus(txt, color) {
 async function startScan() {
   out.innerHTML = "";
   try {
-    // Pistas: limitamos a los formatos de retail (UPC/EAN) + Code128/39 que usa
-    // Walmart, y activamos TRY_HARDER para que enganche códigos algo borrosos.
+    // SOLO formatos de retail (UPC/EAN). Tienen dígito verificador, así que
+    // un misread es casi imposible. Quitamos CODE_128/CODE_39 a propósito:
+    // con imagen borrosa "inventan" números (era la causa de leer mal).
     const hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
       ZXing.BarcodeFormat.UPC_A,
       ZXing.BarcodeFormat.UPC_E,
       ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.CODE_39
+      ZXing.BarcodeFormat.EAN_8
     ]);
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
@@ -137,6 +138,8 @@ async function startScan() {
     codeReader = new ZXing.BrowserMultiFormatReader(hints, 100);
     scanning = true;
     frameCount = 0;
+    lastCandidate = null;
+    candidateCount = 0;
     btnScan.textContent = "Detener";
     btnScan.className = "btn btn-sec";
     video.style.display = "block";
@@ -167,6 +170,18 @@ async function startScan() {
         }
         if (result) {
           const code = result.getText();
+          // Confirmación: exigimos leer el MISMO código 2 veces seguidas
+          // antes de aceptarlo. Mata los falsos positivos de un solo cuadro.
+          if (code === lastCandidate) {
+            candidateCount++;
+          } else {
+            lastCandidate = code;
+            candidateCount = 1;
+          }
+          if (candidateCount < 2) {
+            setStatus("Leyendo " + code + " … confirmá (mantené firme)", "#FF9100");
+            return;
+          }
           setStatus("✓ Detectado: " + code, "#00C853");
           stopScan();
           document.getElementById("upcInput").value = code;
