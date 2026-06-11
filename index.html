@@ -69,7 +69,10 @@
       <div class="laser" id="laser"></div>
     </div>
 
+    <div id="scanStatus" class="small" style="text-align:center;min-height:16px;margin:-4px 0 8px"></div>
+
     <button class="btn btn-pri" id="btnScan">📷 Escanear código de barras</button>
+    <button class="btn btn-sec" id="btnTorch" style="display:none;margin-top:8px">🔦 Linterna</button>
 
     <div class="row">
       <input id="upcInput" placeholder="O escribí el UPC a mano" inputmode="numeric" />
@@ -102,6 +105,18 @@ document.getElementById("btnLookup").addEventListener("click", () => {
   if (v) lookup(v);
 });
 
+let frameCount = 0;
+let videoTrack = null;
+let torchOn = false;
+const status = document.getElementById("scanStatus");
+const btnTorch = document.getElementById("btnTorch");
+
+function setStatus(txt, color) {
+  if (!status) return;
+  status.textContent = txt;
+  status.style.color = color || "#6B6B9B";
+}
+
 async function startScan() {
   out.innerHTML = "";
   try {
@@ -119,23 +134,24 @@ async function startScan() {
     hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
 
     // 2do parámetro = ms entre intentos (más bajo = escanea más seguido).
-    codeReader = new ZXing.BrowserMultiFormatReader(hints, 150);
+    codeReader = new ZXing.BrowserMultiFormatReader(hints, 100);
     scanning = true;
+    frameCount = 0;
     btnScan.textContent = "Detener";
     btnScan.className = "btn btn-sec";
     video.style.display = "block";
     camIdle.style.display = "none";
     laser.style.display = "block";
+    setStatus("Iniciando cámara…");
 
-    // Cámara trasera, alta resolución (código nítido) y enfoque continuo.
-    // focusMode va en "advanced" para que sea opcional y no falle si el
-    // dispositivo no lo soporta.
+    // 1280×720 es más confiable en Safari/iPhone que 1080p (que a veces
+    // entrega cuadros que ZXing no logra leer). facingMode environment ya
+    // elige la cámara trasera.
     const constraints = {
       video: {
         facingMode: { ideal: "environment" },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        advanced: [{ focusMode: "continuous" }, { focusDistance: 0.1 }]
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
     };
 
@@ -143,8 +159,15 @@ async function startScan() {
       constraints,
       video,
       (result, err) => {
+        // El callback corre en CADA intento (haya código o no): así sabemos
+        // que el lector está vivo y analizando.
+        frameCount++;
+        if (!result && frameCount % 4 === 0) {
+          setStatus("Analizando… (" + frameCount + ") · acercá el código a la línea y enfocá", "#8888AA");
+        }
         if (result) {
           const code = result.getText();
+          setStatus("✓ Detectado: " + code, "#00C853");
           stopScan();
           document.getElementById("upcInput").value = code;
           lookup(code);
@@ -152,12 +175,15 @@ async function startScan() {
       }
     );
 
-    // Si la cámara soporta enfoque/zoom manual, lo dejamos en modo continuo.
+    // Mostrar la resolución real obtenida + habilitar linterna si el equipo
+    // la soporta. Si seguís viendo "Analizando…" sin detectar, es enfoque.
     try {
-      const track = video.srcObject && video.srcObject.getVideoTracks()[0];
-      const caps = track && track.getCapabilities && track.getCapabilities();
-      if (caps && caps.focusMode && caps.focusMode.includes("continuous")) {
-        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+      videoTrack = video.srcObject && video.srcObject.getVideoTracks()[0];
+      const s = videoTrack && videoTrack.getSettings ? videoTrack.getSettings() : {};
+      setStatus("Cámara lista " + (s.width || "?") + "×" + (s.height || "?") + " · apuntá al código de barras", "#6B6B9B");
+      const caps = videoTrack && videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      if (caps && caps.torch) {
+        btnTorch.style.display = "block";
       }
     } catch (_) {}
   } catch (e) {
@@ -169,14 +195,39 @@ async function startScan() {
   }
 }
 
+// Tocar la imagen intenta re-enfocar (en equipos que lo soportan).
+video.addEventListener("click", async () => {
+  if (!videoTrack) return;
+  try {
+    await videoTrack.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+    setStatus("Reenfocando…", "#8888AA");
+  } catch (_) {}
+});
+
+// Linterna on/off para escanear con poca luz.
+btnTorch.addEventListener("click", async () => {
+  if (!videoTrack) return;
+  try {
+    torchOn = !torchOn;
+    await videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
+    btnTorch.textContent = torchOn ? "🔦 Linterna (ON)" : "🔦 Linterna";
+  } catch (_) {}
+});
+
 function stopScan() {
+  try {
+    if (torchOn && videoTrack) { videoTrack.applyConstraints({ advanced: [{ torch: false }] }); }
+  } catch (e) {}
   try { codeReader && codeReader.reset(); } catch (e) {}
   scanning = false;
+  torchOn = false;
+  videoTrack = null;
   btnScan.textContent = "📷 Escanear código de barras";
   btnScan.className = "btn btn-pri";
   video.style.display = "none";
   camIdle.style.display = "flex";
   laser.style.display = "none";
+  if (btnTorch) { btnTorch.style.display = "none"; btnTorch.textContent = "🔦 Linterna"; }
 }
 
 function amazonHeuristic(brand, title) {
