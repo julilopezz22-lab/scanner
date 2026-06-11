@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scan & Cross-List</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-library/0.18.6/zxing.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0A0A0F; color: #F0F0F0; font-family: 'Inter','Segoe UI',sans-serif; max-width: 480px; margin: 0 auto; min-height: 100vh; }
+  .header { display: flex; align-items: center; gap: 10px; padding: 20px 16px; background: linear-gradient(135deg,#1A1A2E,#0D0D1A); border-bottom: 1px solid #1E1E35; }
+  .h1 { font-size: 19px; font-weight: 700; color: #E8E8FF; }
+  .h2 { font-size: 11px; color: #6B6B9B; text-transform: uppercase; letter-spacing: .5px; }
+  .body { padding: 16px; }
+  .cam { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid #2A2A4A; margin-bottom: 12px; }
+  .cam video { width: 100%; height: 100%; object-fit: cover; }
+  .cam-idle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #555580; text-align: center; padding: 16px; }
+  .laser { position: absolute; top: 50%; left: 8%; right: 8%; height: 2px; background: #5B8CFF; box-shadow: 0 0 12px #5B8CFF; display: none; }
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-pri { background: linear-gradient(135deg,#3D5AFE,#5B8CFF); color: #fff; }
+  .btn-sec { background: #16162A; border: 1px solid #2A2A4A; color: #9090B0; }
+  .row { display: flex; gap: 8px; margin-top: 12px; }
+  input { background: #16162A; border: 1px solid #2A2A4A; border-radius: 10px; padding: 12px 14px; color: #E8E8FF; font-size: 14px; outline: none; width: 100%; }
+  .err { margin-top: 12px; padding: 10px 12px; background: #2A1616; border: 1px solid #FF444433; border-radius: 8px; font-size: 12px; color: #FF7043; }
+  .note { margin-top: 14px; padding: 12px 14px; background: #16162A; border: 1px solid #2A2A4A; border-radius: 10px; font-size: 12px; color: #9090B0; line-height: 1.6; }
+  .loading { text-align: center; color: #5B8CFF; padding: 24px; font-size: 14px; }
+  .card { margin-top: 14px; background: #16162A; border: 1px solid #2A2A4A; border-radius: 12px; padding: 16px; }
+  .prod { display: flex; gap: 12px; }
+  .thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: #0E0E20; flex-shrink: 0; }
+  .title { font-size: 14px; font-weight: 600; color: #E8E8FF; line-height: 1.4; margin-bottom: 4px; }
+  .meta { font-size: 12px; color: #8888AA; margin-bottom: 2px; }
+  .verdict { margin-top: 12px; padding: 14px; border: 1px solid; border-radius: 10px; }
+  .verdict.ok { border-color: #00C85355; background: #0E1F14; }
+  .verdict.no { border-color: #FF444455; background: #1F0E0E; }
+  .verdict.warn { border-color: #FF910055; background: #1F170E; }
+  .v-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15px; font-weight: 700; }
+  .calc { background: #0A0A0F; border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
+  .calc-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #ffffff10; }
+  .calc-row:last-child { border-bottom: none; }
+  .calc-row .k { color: #8888AA; }
+  .small { font-size: 10px; color: #555580; margin-top: 6px; line-height: 1.5; }
+  .cost-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-size: 12px; color: #8888AA; }
+  .cost-row input { width: 72px; padding: 5px 8px; font-size: 13px; }
+  .copy-tip { margin-top: 8px; font-size: 11px; color: #6B6B9B; line-height: 1.5; }
+  textarea { width: 100%; background: #111120; border: 1px solid #2A2A4A; border-radius: 8px; color: #C0C0E0; font-size: 12px; padding: 10px; margin-top: 10px; min-height: 110px; font-family: monospace; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <span style="font-size:26px">📦</span>
+    <div>
+      <div class="h1">Scan &amp; Cross-List</div>
+      <div class="h2">Walmart → eBay / Amazon</div>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="cam">
+      <video id="video" playsinline muted style="display:none"></video>
+      <div class="cam-idle" id="camIdle">
+        <span style="font-size:44px;margin-bottom:6px">📷</span>
+        <span style="font-size:13px" id="camMsg">Cámara apagada</span>
+      </div>
+      <div class="laser" id="laser"></div>
+    </div>
+
+    <button class="btn btn-pri" id="btnScan">📷 Escanear código de barras</button>
+
+    <div class="row">
+      <input id="upcInput" placeholder="O escribí el UPC a mano" inputmode="numeric" />
+      <button class="btn btn-pri" style="width:auto;padding:0 16px" id="btnLookup">Buscar</button>
+    </div>
+
+    <div id="out"></div>
+
+    <div class="note">
+      ℹ️ <b style="color:#8888AA">Si la cámara no abre acá:</b> la vista previa del chat bloquea la cámara por seguridad. Usá la entrada manual acá, o abrí la app desplegada en Vercel desde tu celular para escanear de verdad.
+    </div>
+  </div>
+
+<script>
+// Marcas gated en Amazon
+const GATED = ["lego","nintendo","disney","pokemon","nerf","hasbro","mattel","nike","adidas","marvel","barbie","hot wheels","fisher-price","funko","apple","samsung","sony","play-doh","vtech","paw patrol","bluey","peppa pig","transformers","star wars","my little pony","power rangers","leapfrog","mega bloks"];
+
+let codeReader = null;
+let scanning = false;
+const video = document.getElementById("video");
+const camIdle = document.getElementById("camIdle");
+const camMsg = document.getElementById("camMsg");
+const laser = document.getElementById("laser");
+const btnScan = document.getElementById("btnScan");
+const out = document.getElementById("out");
+
+btnScan.addEventListener("click", () => scanning ? stopScan() : startScan());
+document.getElementById("btnLookup").addEventListener("click", () => {
+  const v = document.getElementById("upcInput").value.trim();
+  if (v) lookup(v);
+});
+
+async function startScan() {
+  out.innerHTML = "";
+  try {
+    codeReader = new ZXing.BrowserMultiFormatReader();
+    scanning = true;
+    btnScan.textContent = "Detener";
+    btnScan.className = "btn btn-sec";
+    video.style.display = "block";
+    camIdle.style.display = "none";
+    laser.style.display = "block";
+    await codeReader.decodeFromConstraints(
+      { video: { facingMode: "environment" } },
+      video,
+      (result, err) => {
+        if (result) {
+          const code = result.getText();
+          stopScan();
+          document.getElementById("upcInput").value = code;
+          lookup(code);
+        }
+      }
+    );
+  } catch (e) {
+    stopScan();
+    camMsg.textContent = e.name === "NotAllowedError"
+      ? "Cámara bloqueada en este entorno. Usá la entrada manual abajo, o abrí la app en Vercel."
+      : "No se pudo abrir la cámara: " + e.message;
+    camMsg.style.color = "#FF9100";
+  }
+}
+
+function stopScan() {
+  try { codeReader && codeReader.reset(); } catch (e) {}
+  scanning = false;
+  btnScan.textContent = "📷 Escanear código de barras";
+  btnScan.className = "btn btn-pri";
+  video.style.display = "none";
+  camIdle.style.display = "flex";
+  laser.style.display = "none";
+}
+
+function amazonHeuristic(brand, title) {
+  const t = ((brand||"") + " " + (title||"")).toLowerCase();
+  return GATED.some(b => t.includes(b));
+}
+
+async function lookup(upc) {
+  out.innerHTML = '<div class="loading">Buscando producto…</div>';
+  let data = null;
+  try {
+    // Intento directo a UPCitemdb (trial, sin key). Si CORS lo bloquea, mostramos aviso.
+    const r = await fetch("https://api.upcitemdb.com/prod/trial/lookup?upc=" + encodeURIComponent(upc));
+    data = await r.json();
+  } catch (e) {
+    out.innerHTML = '<div class="err">⚠️ No se pudo consultar la base de productos desde este entorno (bloqueo CORS o de red). En la versión desplegada en Vercel esto se resuelve con la función /api/lookup. Probá ahí.</div>';
+    return;
+  }
+
+  if (!data || !data.items || data.items.length === 0) {
+    out.innerHTML = '<div class="note">No encontré datos para <b>' + upc + '</b>. Cargá el producto a mano en eBay/Amazon.</div>';
+    return;
+  }
+
+  const it = data.items[0];
+  const gated = amazonHeuristic(it.brand, it.title);
+  const lo = it.lowest_recorded_price, hi = it.highest_recorded_price;
+  const refPrice = hi || lo || null;
+
+  let html = '<div class="card">';
+  html += '<div class="prod">';
+  if (it.images && it.images[0]) html += '<img class="thumb" src="' + it.images[0] + '" alt="">';
+  html += '<div style="flex:1;min-width:0">';
+  html += '<div class="title">' + (it.title || "Sin título") + '</div>';
+  if (it.brand) html += '<div class="meta">Marca: ' + it.brand + '</div>';
+  if (it.category) html += '<div class="meta">' + it.category + '</div>';
+  html += '<div class="meta" style="font-family:monospace">UPC: ' + upc + '</div>';
+  html += '</div></div>';
+
+  if (lo || hi) {
+    html += '<div style="margin-top:10px;font-size:12px;color:#9090B0">Precio de referencia en el mercado: <b style="color:#00C853">$' + (lo||"?") + ' – $' + (hi||"?") + '</b></div>';
+  }
+
+  // Veredicto
+  if (gated) {
+    html += '<div class="verdict no"><div class="v-head" style="color:#FF4444">🚫 Marca gated en Amazon</div>';
+    html += '<div style="font-size:12px;color:#C0A0A0;line-height:1.5">Con cuenta nueva no vas a poder listarla. <b>Mandala a eBay</b> — ahí no hay gating.</div></div>';
+  } else {
+    html += '<div class="verdict warn"><div class="v-head" style="color:#FF9100">⚠️ Probablemente vendible — verificá el ASIN</div>';
+    html += '<div style="font-size:12px;color:#C0B090;line-height:1.5">La marca no está en la lista de gated conocidas. El veredicto definitivo (sí/no con TU cuenta) solo lo da el backend SP-API cuando Amazon apruebe tu registro de developer. Mientras tanto: buscá el producto en tu app de Amazon Seller antes de listarlo.</div>';
+
+    // Calculadora con precio de referencia
+    if (refPrice) {
+      const cost = 1.00;
+      const fees = refPrice * 0.15 + 3.5;
+      const profit = refPrice - cost - fees;
+      const roi = ((profit / cost) * 100).toFixed(0);
+      html += '<div class="cost-row"><span>Tu costo (editalo):</span><span>$ <input id="costInput" type="number" value="1.00" step="0.5"></span></div>';
+      html += '<div class="calc" id="calcBox">' + calcRows(refPrice, cost) + '</div>';
+      html += '<div class="small">* Basado en el precio de referencia del mercado, no en el precio en vivo de Amazon. Comisiones estimadas (~15% + envío). El número exacto: FBA Calculator.</div>';
+    }
+    html += '</div>';
+  }
+
+  // Texto para cross-listing
+  const listText = [
+    it.title && "Título: " + it.title,
+    it.brand && "Marca: " + it.brand,
+    it.model && "Modelo: " + it.model,
+    it.color && "Color: " + it.color,
+    it.category && "Categoría: " + it.category,
+    "UPC: " + upc,
+    it.description && "\nDescripción:\n" + it.description,
+  ].filter(Boolean).join("\n");
+
+  html += '<button class="btn btn-pri" style="margin-top:12px" id="btnCopy">📋 Copiar datos para listar</button>';
+  html += '<textarea readonly id="listText">' + listText.replace(/</g,"&lt;") + '</textarea>';
+  html += '<div class="copy-tip">Pegá esto en eBay ("Vender uno como este") o en el formulario de Amazon.</div>';
+  html += '</div>';
+
+  out.innerHTML = html;
+
+  const btnCopy = document.getElementById("btnCopy");
+  if (btnCopy) btnCopy.addEventListener("click", () => {
+    const ta = document.getElementById("listText");
+    ta.select();
+    try { navigator.clipboard.writeText(ta.value); } catch(e) { document.execCommand("copy"); }
+    btnCopy.textContent = "✓ Copiado";
+    setTimeout(() => btnCopy.textContent = "📋 Copiar datos para listar", 1500);
+  });
+
+  const costInput = document.getElementById("costInput");
+  if (costInput && refPrice) {
+    costInput.addEventListener("input", () => {
+      const c = parseFloat(costInput.value) || 0;
+      document.getElementById("calcBox").innerHTML = calcRows(refPrice, c);
+    });
+  }
+}
+
+function calcRows(price, cost) {
+  const fees = price * 0.15 + 3.5;
+  const profit = price - cost - fees;
+  const roi = cost > 0 ? ((profit / cost) * 100).toFixed(0) : "—";
+  const pc = profit > 0 ? "#00C853" : "#FF4444";
+  const rc = roi > 50 ? "#00C853" : roi > 0 ? "#FF9100" : "#FF4444";
+  return ''
+    + row("Precio de referencia", "$" + price.toFixed(2), "#E8E8FF")
+    + row("Comisiones (~15% + envío)", "-$" + fees.toFixed(2), "#FF9100")
+    + row("Tu costo", "-$" + cost.toFixed(2), "#FF9100")
+    + row("Ganancia estimada", "$" + profit.toFixed(2), pc)
+    + row("ROI", roi + "%", rc);
+}
+function row(k, v, c) {
+  return '<div class="calc-row"><span class="k">' + k + '</span><span style="font-weight:600;color:' + c + '">' + v + '</span></div>';
+}
+</script>
+</body>
+</html>
