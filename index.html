@@ -626,6 +626,17 @@ async function openItem(id){
       <div class="hint">📤 <b>Compartir</b> abre el selector del celu para mandar las fotos directo a Depop, Instagram, etc. ⬇️ <b>Descargar</b> las guarda en el rollo para subirlas a mano.</div>`;
   }
 
+  // Acciones de fotos que repetimos dentro de cada marketplace (para tenerlas
+  // a mano justo cuando vas a publicar). Subirlas siempre es manual.
+  const hasPhotos = it.photos && it.photos.length;
+  const photoBtns = hasPhotos
+    ? `<div class="out-label">📷 Fotos (${it.photos.length}) <span class="muted" style="text-transform:none">— subilas vos</span></div>
+       <div style="display:flex;gap:6px;margin-top:6px">
+         <button class="copybtn" style="flex:1;padding:9px" onclick="sharePhotos('${it.id}')">📤 Enviar fotos</button>
+         <button class="copybtn" style="flex:1;padding:9px;background:#2A2A4A" onclick="downloadPhotos('${it.id}')">⬇️ Descargar fotos</button>
+       </div>`
+    : `<div class="hint" style="margin-top:8px;color:var(--warn)">📷 Este artículo no tiene fotos cargadas. Tocá ✏️ Editar (arriba) y agregalas.</div>`;
+
   html+=`<div class="sectitle">Publicá en cada marketplace</div>`;
   for(const m of MARKETS){
     const title=buildTitle(it,m), desc=buildDesc(it,m);
@@ -651,6 +662,8 @@ async function openItem(id){
 
         <div class="out-label">Descripción <button class="copybtn" onclick="copyText('d_${m.id}')">📋 Copiar</button></div>
         <div class="out-block" id="d_${m.id}">${esc(desc)}</div>
+
+        ${photoBtns}
 
         <button class="btn btn-pri btn-sm" style="margin-top:12px;width:100%" onclick="openMarket('${m.id}')">
           🚀 Abrir ${m.name} para publicar</button>
