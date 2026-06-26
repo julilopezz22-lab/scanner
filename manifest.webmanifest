@@ -1,0 +1,16 @@
+{
+  "name": "CrossList — Publicá en todos lados",
+  "short_name": "CrossList",
+  "description": "Cargá un artículo una vez y publicalo optimizado en eBay, Poshmark, Mercari, Vinted y Facebook Marketplace.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0A0F",
+  "theme_color": "#0A0A0F",
+  "lang": "es",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

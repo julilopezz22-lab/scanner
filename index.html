@@ -2,414 +2,647 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Scan & Cross-List</title>
-<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
-<script>
-  if (typeof ZXing === "undefined") {
-    document.write('<scr' + 'ipt src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.6/umd/index.min.js"><\/scr' + 'ipt>');
-  }
-</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#0A0A0F" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="CrossList" />
+<link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="icon" href="icon.svg" />
+<title>CrossList — Publicá en todos lados</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0A0A0F; color: #F0F0F0; font-family: 'Inter','Segoe UI',sans-serif; max-width: 480px; margin: 0 auto; min-height: 100vh; }
-  .header { display: flex; align-items: center; gap: 10px; padding: 20px 16px; background: linear-gradient(135deg,#1A1A2E,#0D0D1A); border-bottom: 1px solid #1E1E35; }
-  .h1 { font-size: 19px; font-weight: 700; color: #E8E8FF; }
-  .h2 { font-size: 11px; color: #6B6B9B; text-transform: uppercase; letter-spacing: .5px; }
-  .body { padding: 16px; }
-  .cam { position: relative; width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 14px; overflow: hidden; border: 1px solid #2A2A4A; margin-bottom: 12px; }
-  .cam video { width: 100%; height: 100%; object-fit: cover; }
-  .cam-idle { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #555580; text-align: center; padding: 16px; }
-  .laser { position: absolute; top: 50%; left: 8%; right: 8%; height: 2px; background: #5B8CFF; box-shadow: 0 0 12px #5B8CFF; display: none; }
-  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; }
-  .btn-pri { background: linear-gradient(135deg,#3D5AFE,#5B8CFF); color: #fff; }
-  .btn-sec { background: #16162A; border: 1px solid #2A2A4A; color: #9090B0; }
-  .row { display: flex; gap: 8px; margin-top: 12px; }
-  input { background: #16162A; border: 1px solid #2A2A4A; border-radius: 10px; padding: 12px 14px; color: #E8E8FF; font-size: 14px; outline: none; width: 100%; }
-  .err { margin-top: 12px; padding: 10px 12px; background: #2A1616; border: 1px solid #FF444433; border-radius: 8px; font-size: 12px; color: #FF7043; }
-  .note { margin-top: 14px; padding: 12px 14px; background: #16162A; border: 1px solid #2A2A4A; border-radius: 10px; font-size: 12px; color: #9090B0; line-height: 1.6; }
-  .loading { text-align: center; color: #5B8CFF; padding: 24px; font-size: 14px; }
-  .card { margin-top: 14px; background: #16162A; border: 1px solid #2A2A4A; border-radius: 12px; padding: 16px; }
-  .prod { display: flex; gap: 12px; }
-  .thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; background: #0E0E20; flex-shrink: 0; }
-  .title { font-size: 14px; font-weight: 600; color: #E8E8FF; line-height: 1.4; margin-bottom: 4px; }
-  .meta { font-size: 12px; color: #8888AA; margin-bottom: 2px; }
-  .verdict { margin-top: 12px; padding: 14px; border: 1px solid; border-radius: 10px; }
-  .verdict.ok { border-color: #00C85355; background: #0E1F14; }
-  .verdict.no { border-color: #FF444455; background: #1F0E0E; }
-  .verdict.warn { border-color: #FF910055; background: #1F170E; }
-  .v-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 15px; font-weight: 700; }
-  .calc { background: #0A0A0F; border-radius: 8px; padding: 12px 14px; margin-top: 10px; }
-  .calc-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid #ffffff10; }
-  .calc-row:last-child { border-bottom: none; }
-  .calc-row .k { color: #8888AA; }
-  .small { font-size: 10px; color: #555580; margin-top: 6px; line-height: 1.5; }
-  .cost-row { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; font-size: 12px; color: #8888AA; }
-  .cost-row input { width: 72px; padding: 5px 8px; font-size: 13px; }
-  .copy-tip { margin-top: 8px; font-size: 11px; color: #6B6B9B; line-height: 1.5; }
-  textarea { width: 100%; background: #111120; border: 1px solid #2A2A4A; border-radius: 8px; color: #C0C0E0; font-size: 12px; padding: 10px; margin-top: 10px; min-height: 110px; font-family: monospace; }
+  :root{
+    --bg:#0A0A0F; --panel:#16162A; --panel2:#111120; --line:#2A2A4A;
+    --txt:#E8E8FF; --mut:#8888AA; --mut2:#6B6B9B; --pri:#5B8CFF; --pri2:#3D5AFE;
+    --ok:#00C853; --warn:#FF9100; --bad:#FF4444; --gold:#FFC04D;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{background:var(--bg);color:var(--txt);font-family:'Inter','Segoe UI',system-ui,sans-serif}
+  body{max-width:520px;margin:0 auto;min-height:100vh;padding-bottom:84px}
+  a{color:var(--pri)}
+  .header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:16px;
+    padding-top:max(16px,env(safe-area-inset-top));background:linear-gradient(135deg,#1A1A2E,#0D0D1A);
+    border-bottom:1px solid #1E1E35}
+  .header .logo{font-size:24px}
+  .h1{font-size:18px;font-weight:800;color:#E8E8FF;letter-spacing:.2px}
+  .h2{font-size:10px;color:var(--mut2);text-transform:uppercase;letter-spacing:.6px}
+  .grow{flex:1}
+  .body{padding:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;border:none;
+    border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit}
+  .btn-pri{background:linear-gradient(135deg,var(--pri2),var(--pri));color:#fff}
+  .btn-sec{background:var(--panel);border:1px solid var(--line);color:#A8A8D0}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--mut)}
+  .btn-sm{padding:9px 12px;font-size:13px;border-radius:9px;width:auto}
+  .iconbtn{width:38px;height:38px;border-radius:10px;background:var(--panel);border:1px solid var(--line);
+    color:var(--txt);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto}
+  label{display:block;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
+  input,select,textarea{width:100%;background:var(--panel);border:1px solid var(--line);border-radius:11px;
+    padding:12px 14px;color:var(--txt);font-size:15px;outline:none;font-family:inherit}
+  input:focus,select:focus,textarea:focus{border-color:var(--pri)}
+  textarea{min-height:96px;resize:vertical;line-height:1.5}
+  select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238888AA' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
+    background-repeat:no-repeat;background-position:right 12px center;padding-right:36px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field-half label{margin-top:0}
+  .muted{color:var(--mut)}
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:600}
+
+  /* ---- Listado ---- */
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  .search{flex:1}
+  .item{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:11px;margin-bottom:10px;cursor:pointer;position:relative;overflow:hidden}
+  .item:active{border-color:var(--pri)}
+  .item .ph{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--panel2);flex:0 0 auto;
+    display:flex;align-items:center;justify-content:center;font-size:26px;color:#444466}
+  .item .info{flex:1;min-width:0}
+  .item .it-title{font-size:14px;font-weight:700;line-height:1.3;margin-bottom:3px;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .item .it-price{font-size:15px;font-weight:800;color:var(--ok)}
+  .item .it-sub{font-size:11px;color:var(--mut);margin:2px 0 6px}
+  .chips{display:flex;flex-wrap:wrap;gap:4px}
+  .chip{font-size:9px;font-weight:700;padding:3px 6px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}
+  .empty{text-align:center;padding:60px 20px;color:var(--mut2)}
+  .empty .big{font-size:52px;margin-bottom:14px;opacity:.7}
+
+  /* ---- Tabs nav ---- */
+  .nav{position:fixed;bottom:0;left:0;right:0;z-index:40;display:flex;max-width:520px;margin:0 auto;
+    background:#0D0D1A;border-top:1px solid #1E1E35;padding-bottom:env(safe-area-inset-bottom)}
+  .nav button{flex:1;background:none;border:none;color:var(--mut2);padding:10px 4px 12px;font-size:10px;
+    font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit}
+  .nav button .ic{font-size:20px}
+  .nav button.on{color:var(--pri)}
+
+  /* ---- Detalle / crosslist ---- */
+  .gallery{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px}
+  .gallery img{width:104px;height:104px;border-radius:12px;object-fit:cover;flex:0 0 auto;border:1px solid var(--line)}
+  .gallery .add{width:104px;height:104px;border-radius:12px;border:1px dashed var(--line);background:var(--panel2);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:var(--mut);
+    font-size:12px;flex:0 0 auto;cursor:pointer}
+  .photo-wrap{position:relative;flex:0 0 auto}
+  .photo-wrap .del{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;
+    background:#000a;border:none;color:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+  .photo-wrap .lead{position:absolute;bottom:4px;left:4px;font-size:8px;font-weight:800;background:var(--pri);
+    color:#fff;padding:2px 5px;border-radius:5px;text-transform:uppercase}
+
+  .mk{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+  .mk-head{display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer}
+  .mk-ic{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:15px;font-weight:800;color:#fff;flex:0 0 auto}
+  .mk-name{font-size:14px;font-weight:700;flex:1}
+  .mk-meta{font-size:10px;color:var(--mut)}
+  .mk-body{padding:0 14px 14px;display:none}
+  .mk.open .mk-body{display:block}
+  .mk.open .mk-head .caret{transform:rotate(180deg)}
+  .caret{transition:transform .2s;color:var(--mut)}
+  .out-block{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+    font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:#C8C8E8;position:relative;margin-top:8px}
+  .out-label{font-size:10px;color:var(--mut2);text-transform:uppercase;letter-spacing:.5px;margin:10px 0 0;
+    display:flex;justify-content:space-between;align-items:center}
+  .copybtn{background:var(--pri2);color:#fff;border:none;border-radius:7px;padding:5px 10px;font-size:11px;
+    font-weight:700;cursor:pointer}
+  .count-ok{color:var(--ok)} .count-bad{color:var(--bad)}
+  .statusrow{display:flex;gap:6px;margin-top:12px}
+  .statusrow button{flex:1;padding:9px 4px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);
+    color:var(--mut);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit}
+  .statusrow button.act-listed{border-color:var(--pri);color:var(--pri);background:#5B8CFF18}
+  .statusrow button.act-sold{border-color:var(--ok);color:var(--ok);background:#00C85318}
+
+  .summary{background:linear-gradient(135deg,#1A1A2E,#15152A);border:1px solid var(--line);border-radius:14px;
+    padding:14px;margin-bottom:14px}
+  .summary .st{font-size:17px;font-weight:800;line-height:1.3}
+  .summary .sp{font-size:22px;font-weight:900;color:var(--ok);margin-top:4px}
+  .summary .ss{font-size:12px;color:var(--mut);margin-top:6px}
+
+  .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:#1F1F3A;border:1px solid var(--pri);
+    color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:600;z-index:80;opacity:0;
+    transition:opacity .2s,transform .2s;pointer-events:none;white-space:nowrap;box-shadow:0 8px 30px #0008}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px)}
+
+  .modal-bg{position:fixed;inset:0;background:#000a;z-index:90;display:none;align-items:flex-end;justify-content:center}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;width:100%;max-width:520px;
+    padding:20px 18px;padding-bottom:max(20px,env(safe-area-inset-bottom))}
+  .modal h3{font-size:16px;margin-bottom:8px}
+  .modal p{font-size:13px;color:var(--mut);line-height:1.55;margin-bottom:16px}
+
+  .hint{font-size:11px;color:var(--mut2);line-height:1.5;margin-top:6px}
+  .banner{background:#16162A;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;
+    color:var(--mut);line-height:1.6;margin-bottom:14px}
+  .sectitle{font-size:11px;color:var(--mut2);text-transform:uppercase;letter-spacing:.6px;margin:18px 0 8px;font-weight:700}
+  .hidden{display:none!important}
 </style>
 </head>
 <body>
   <div class="header">
-    <span style="font-size:26px">📦</span>
-    <div>
-      <div class="h1">Scan &amp; Cross-List</div>
-      <div class="h2">Walmart → eBay / Amazon</div>
+    <span class="logo">🏷️</span>
+    <div class="grow">
+      <div class="h1">CrossList</div>
+      <div class="h2" id="hsub">Publicá una vez · vendé en todos lados</div>
     </div>
+    <button class="iconbtn" id="btnMenu" title="Menú">⋯</button>
   </div>
 
-  <div class="body">
-    <div class="cam">
-      <video id="video" playsinline muted style="display:none"></video>
-      <div class="cam-idle" id="camIdle">
-        <span style="font-size:44px;margin-bottom:6px">📷</span>
-        <span style="font-size:13px" id="camMsg">Cámara apagada</span>
-      </div>
-      <div class="laser" id="laser"></div>
-    </div>
+  <div class="body" id="app"></div>
 
-    <div id="scanStatus" class="small" style="text-align:center;min-height:16px;margin:-4px 0 8px"></div>
+  <nav class="nav">
+    <button data-tab="list" class="on"><span class="ic">📋</span>Mis artículos</button>
+    <button data-tab="new"><span class="ic">➕</span>Nuevo</button>
+    <button data-tab="stats"><span class="ic">📊</span>Resumen</button>
+  </nav>
 
-    <button class="btn btn-pri" id="btnPhoto">📸 Tomar foto del código (mejor en iPhone)</button>
-    <input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" />
-    <button class="btn btn-sec" id="btnScan" style="margin-top:8px">🎥 Escanear en vivo</button>
-    <button class="btn btn-sec" id="btnTorch" style="display:none;margin-top:8px">🔦 Linterna</button>
+  <div class="toast" id="toast"></div>
 
-    <div class="row">
-      <input id="upcInput" placeholder="O escribí el UPC a mano" inputmode="numeric" />
-      <button class="btn btn-pri" style="width:auto;padding:0 16px" id="btnLookup">Buscar</button>
-    </div>
-
-    <div id="out"></div>
-
-    <div class="note">
-      ℹ️ <b style="color:#8888AA">Si la cámara no abre acá:</b> la vista previa del chat bloquea la cámara por seguridad. Usá la entrada manual acá, o abrí la app desplegada en Vercel desde tu celular para escanear de verdad.
+  <!-- Menú -->
+  <div class="modal-bg" id="menuModal">
+    <div class="modal">
+      <h3>Menú</h3>
+      <p>Tus artículos se guardan en este dispositivo. Hacé copias de seguridad seguido.</p>
+      <button class="btn btn-sec" id="btnExport" style="margin-bottom:10px">⬇️ Exportar copia (.json)</button>
+      <label for="importFile" class="btn btn-sec" style="margin-bottom:10px;cursor:pointer">⬆️ Importar copia</label>
+      <input type="file" id="importFile" accept="application/json" class="hidden" />
+      <button class="btn btn-ghost" id="btnCloseMenu">Cerrar</button>
     </div>
   </div>
 
 <script>
-// Marcas gated en Amazon
-const GATED = ["lego","nintendo","disney","pokemon","nerf","hasbro","mattel","nike","adidas","marvel","barbie","hot wheels","fisher-price","funko","apple","samsung","sony","play-doh","vtech","paw patrol","bluey","peppa pig","transformers","star wars","my little pony","power rangers","leapfrog","mega bloks"];
+/* =====================================================================
+   CrossList — asistente de publicación cruzada (PWA)
+   Cargás el artículo UNA vez; la app genera el contenido optimizado
+   para eBay, Poshmark, Mercari, Vinted y Facebook Marketplace, copia
+   con un toque, abre cada app y trackea en qué plataforma está / se
+   vendió (para que des de baja en el resto). Todo offline, sin claves.
+   ===================================================================== */
 
-let codeReader = null;
-let scanning = false;
-const video = document.getElementById("video");
-const camIdle = document.getElementById("camIdle");
-const camMsg = document.getElementById("camMsg");
-const laser = document.getElementById("laser");
-const btnScan = document.getElementById("btnScan");
-const out = document.getElementById("out");
+/* ---------- Definición de marketplaces ----------
+   titleMax: límite real de caracteres del título.
+   tags: estilo de hashtags que premia cada plataforma.
+   url: deep-link a la pantalla "crear publicación".            */
+const MARKETS = [
+  { id:"ebay",     name:"eBay",                 color:"#E53238", ic:"e",
+    titleMax:80, descMax:4000, tags:false,
+    url:"https://www.ebay.com/sl/sell" },
+  { id:"poshmark", name:"Poshmark",             color:"#822432", ic:"P",
+    titleMax:50, descMax:1500, tags:true, maxTags:5,
+    url:"https://poshmark.com/create-listing" },
+  { id:"mercari",  name:"Mercari",              color:"#5246F6", ic:"M",
+    titleMax:80, descMax:1000, tags:true, maxTags:3,
+    url:"https://www.mercari.com/sell/" },
+  { id:"vinted",   name:"Vinted",               color:"#09B1BA", ic:"V",
+    titleMax:70, descMax:2000, tags:true, maxTags:5,
+    url:"https://www.vinted.com/items/new" },
+  { id:"facebook", name:"Facebook Marketplace", color:"#1877F2", ic:"f",
+    titleMax:100, descMax:5000, tags:false,
+    url:"https://www.facebook.com/marketplace/create/item" },
+];
+const MARKET_BY = Object.fromEntries(MARKETS.map(m=>[m.id,m]));
 
-btnScan.addEventListener("click", () => scanning ? stopScan() : startScan());
-document.getElementById("btnLookup").addEventListener("click", () => {
-  const v = document.getElementById("upcInput").value.trim();
-  if (v) lookup(v);
-});
+const CONDITIONS = [
+  "Nuevo con etiqueta","Nuevo sin etiqueta","Como nuevo","Muy bueno","Bueno","Aceptable"
+];
+const CATEGORIES = [
+  "Ropa mujer","Ropa hombre","Calzado","Carteras y bolsos","Accesorios","Joyería",
+  "Belleza","Electrónica","Hogar","Juguetes","Niños / Bebé","Deportes","Libros","Otro"
+];
 
-// Solo formatos de retail (UPC/EAN) — con dígito verificador, no se leen mal.
-function retailHints() {
-  const h = new Map();
-  h.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-    ZXing.BarcodeFormat.UPC_A,
-    ZXing.BarcodeFormat.UPC_E,
-    ZXing.BarcodeFormat.EAN_13,
-    ZXing.BarcodeFormat.EAN_8
-  ]);
-  h.set(ZXing.DecodeHintType.TRY_HARDER, true);
-  return h;
-}
-
-// MÉTODO RECOMENDADO EN iPHONE: tomar una foto con la cámara nativa de iOS
-// (enfoca perfecto) y leer esa imagen nítida. Mucho más confiable que el
-// video en vivo, que en Safari sale borroso.
-const btnPhoto = document.getElementById("btnPhoto");
-const photoInput = document.getElementById("photoInput");
-btnPhoto.addEventListener("click", () => { if (scanning) stopScan(); photoInput.click(); });
-photoInput.addEventListener("change", async () => {
-  const file = photoInput.files && photoInput.files[0];
-  if (!file) return;
-  setStatus("Leyendo la foto…", "#8888AA");
-  const reader = new ZXing.BrowserMultiFormatReader(retailHints());
-  const url = URL.createObjectURL(file);
-  try {
-    const result = await reader.decodeFromImageUrl(url);
-    const code = result.getText();
-    setStatus("✓ Código: " + code, "#00C853");
-    document.getElementById("upcInput").value = code;
-    lookup(code);
-  } catch (e) {
-    setStatus("No pude leer el código en la foto. Sacala bien de cerca y nítida, o escribí el número a mano.", "#FF9100");
-  } finally {
-    URL.revokeObjectURL(url);
-    photoInput.value = "";
-  }
-});
-
-let frameCount = 0;
-let videoTrack = null;
-let torchOn = false;
-let lastCandidate = null;
-let candidateCount = 0;
-const status = document.getElementById("scanStatus");
-const btnTorch = document.getElementById("btnTorch");
-
-function setStatus(txt, color) {
-  if (!status) return;
-  status.textContent = txt;
-  status.style.color = color || "#6B6B9B";
-}
-
-async function startScan() {
-  out.innerHTML = "";
-  try {
-    // SOLO formatos de retail (UPC/EAN). Tienen dígito verificador, así que
-    // un misread es casi imposible. Quitamos CODE_128/CODE_39 a propósito:
-    // con imagen borrosa "inventan" números (era la causa de leer mal).
-    const hints = new Map();
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXing.BarcodeFormat.UPC_A,
-      ZXing.BarcodeFormat.UPC_E,
-      ZXing.BarcodeFormat.EAN_13,
-      ZXing.BarcodeFormat.EAN_8
-    ]);
-    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
-
-    // 2do parámetro = ms entre intentos (más bajo = escanea más seguido).
-    codeReader = new ZXing.BrowserMultiFormatReader(hints, 100);
-    scanning = true;
-    frameCount = 0;
-    lastCandidate = null;
-    candidateCount = 0;
-    btnScan.textContent = "Detener";
-    btnScan.className = "btn btn-sec";
-    video.style.display = "block";
-    camIdle.style.display = "none";
-    laser.style.display = "block";
-    setStatus("Iniciando cámara…");
-
-    // 1280×720 es más confiable en Safari/iPhone que 1080p (que a veces
-    // entrega cuadros que ZXing no logra leer). facingMode environment ya
-    // elige la cámara trasera.
-    const constraints = {
-      video: {
-        facingMode: { ideal: "environment" },
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    };
-
-    await codeReader.decodeFromConstraints(
-      constraints,
-      video,
-      (result, err) => {
-        // El callback corre en CADA intento (haya código o no): así sabemos
-        // que el lector está vivo y analizando.
-        frameCount++;
-        if (!result && frameCount % 4 === 0) {
-          setStatus("Analizando… (" + frameCount + ") · acercá el código a la línea y enfocá", "#8888AA");
-        }
-        if (result) {
-          const code = result.getText();
-          // Confirmación: exigimos leer el MISMO código 2 veces seguidas
-          // antes de aceptarlo. Mata los falsos positivos de un solo cuadro.
-          if (code === lastCandidate) {
-            candidateCount++;
-          } else {
-            lastCandidate = code;
-            candidateCount = 1;
-          }
-          if (candidateCount < 2) {
-            setStatus("Leyendo " + code + " … confirmá (mantené firme)", "#FF9100");
-            return;
-          }
-          setStatus("✓ Detectado: " + code, "#00C853");
-          stopScan();
-          document.getElementById("upcInput").value = code;
-          lookup(code);
-        }
-      }
-    );
-
-    // Mostrar la resolución real obtenida + habilitar linterna si el equipo
-    // la soporta. Si seguís viendo "Analizando…" sin detectar, es enfoque.
-    try {
-      videoTrack = video.srcObject && video.srcObject.getVideoTracks()[0];
-      const s = videoTrack && videoTrack.getSettings ? videoTrack.getSettings() : {};
-      setStatus("Cámara lista " + (s.width || "?") + "×" + (s.height || "?") + " · apuntá al código de barras", "#6B6B9B");
-      const caps = videoTrack && videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-      if (caps && caps.torch) {
-        btnTorch.style.display = "block";
-      }
-    } catch (_) {}
-  } catch (e) {
-    stopScan();
-    camMsg.textContent = e.name === "NotAllowedError"
-      ? "Cámara bloqueada en este entorno. Usá la entrada manual abajo, o abrí la app en Vercel."
-      : "No se pudo abrir la cámara: " + e.message;
-    camMsg.style.color = "#FF9100";
-  }
-}
-
-// Tocar la imagen intenta re-enfocar (en equipos que lo soportan).
-video.addEventListener("click", async () => {
-  if (!videoTrack) return;
-  try {
-    await videoTrack.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-    setStatus("Reenfocando…", "#8888AA");
-  } catch (_) {}
-});
-
-// Linterna on/off para escanear con poca luz.
-btnTorch.addEventListener("click", async () => {
-  if (!videoTrack) return;
-  try {
-    torchOn = !torchOn;
-    await videoTrack.applyConstraints({ advanced: [{ torch: torchOn }] });
-    btnTorch.textContent = torchOn ? "🔦 Linterna (ON)" : "🔦 Linterna";
-  } catch (_) {}
-});
-
-function stopScan() {
-  try {
-    if (torchOn && videoTrack) { videoTrack.applyConstraints({ advanced: [{ torch: false }] }); }
-  } catch (e) {}
-  try { codeReader && codeReader.reset(); } catch (e) {}
-  scanning = false;
-  torchOn = false;
-  videoTrack = null;
-  btnScan.textContent = "📷 Escanear código de barras";
-  btnScan.className = "btn btn-pri";
-  video.style.display = "none";
-  camIdle.style.display = "flex";
-  laser.style.display = "none";
-  if (btnTorch) { btnTorch.style.display = "none"; btnTorch.textContent = "🔦 Linterna"; }
-}
-
-function amazonHeuristic(brand, title) {
-  const t = ((brand||"") + " " + (title||"")).toLowerCase();
-  return GATED.some(b => t.includes(b));
-}
-
-async function lookup(upc) {
-  out.innerHTML = '<div class="loading">Buscando producto…</div>';
-  let data = null;
-  try {
-    // Consulta a nuestro backend en Vercel (/api/lookup), que a su vez consulta
-    // UPCitemdb del lado del servidor para esquivar el bloqueo CORS.
-    const r = await fetch("/api/lookup?upc=" + encodeURIComponent(upc));
-    data = await r.json();
-  } catch (e) {
-    out.innerHTML = '<div class="err">⚠️ No se pudo consultar la base de productos (sin red, o el backend /api/lookup no está desplegado). Si abriste el index.html suelto, subilo a Vercel para que funcione la búsqueda.</div>';
-    return;
-  }
-
-  if (!data || !data.items || data.items.length === 0) {
-    const ebaySold = "https://www.ebay.com/sch/i.html?_nkw=" + encodeURIComponent(upc) + "&LH_Sold=1&LH_Complete=1";
-    const google = "https://www.google.com/search?q=" + encodeURIComponent(upc);
-    out.innerHTML =
-      '<div class="note">No hay datos en la base para <b>' + upc + '</b>.<br>' +
-      '👉 Confirmá que ese número coincida con el código <b>impreso en el producto</b> (no el sticker amarillo de Walmart).<br><br>' +
-      'Igual podés ver cuánto vale buscándolo directo:' +
-      '<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">' +
-      '<a class="btn btn-pri" style="text-decoration:none;text-align:center;line-height:44px" target="_blank" rel="noopener" href="' + ebaySold + '">💰 Ver vendidos en eBay (precios reales)</a>' +
-      '<a class="btn btn-sec" style="text-decoration:none;text-align:center;line-height:44px" target="_blank" rel="noopener" href="' + google + '">🔎 Buscar en Google</a>' +
-      '</div></div>';
-    return;
-  }
-
-  const it = data.items[0];
-  const gated = amazonHeuristic(it.brand, it.title);
-  const lo = it.lowest_recorded_price, hi = it.highest_recorded_price;
-  const refPrice = hi || lo || null;
-
-  let html = '<div class="card">';
-  html += '<div class="prod">';
-  if (it.images && it.images[0]) html += '<img class="thumb" src="' + it.images[0] + '" alt="">';
-  html += '<div style="flex:1;min-width:0">';
-  html += '<div class="title">' + (it.title || "Sin título") + '</div>';
-  if (it.brand) html += '<div class="meta">Marca: ' + it.brand + '</div>';
-  if (it.category) html += '<div class="meta">' + it.category + '</div>';
-  html += '<div class="meta" style="font-family:monospace">UPC: ' + upc + '</div>';
-  html += '</div></div>';
-
-  if (lo || hi) {
-    html += '<div style="margin-top:10px;font-size:12px;color:#9090B0">Precio de referencia en el mercado: <b style="color:#00C853">$' + (lo||"?") + ' – $' + (hi||"?") + '</b></div>';
-  }
-
-  // Veredicto
-  if (gated) {
-    html += '<div class="verdict no"><div class="v-head" style="color:#FF4444">🚫 Marca gated en Amazon</div>';
-    html += '<div style="font-size:12px;color:#C0A0A0;line-height:1.5">Con cuenta nueva no vas a poder listarla. <b>Mandala a eBay</b> — ahí no hay gating.</div></div>';
-  } else {
-    html += '<div class="verdict warn"><div class="v-head" style="color:#FF9100">⚠️ Probablemente vendible — verificá el ASIN</div>';
-    html += '<div style="font-size:12px;color:#C0B090;line-height:1.5">La marca no está en la lista de gated conocidas. El veredicto definitivo (sí/no con TU cuenta) solo lo da el backend SP-API cuando Amazon apruebe tu registro de developer. Mientras tanto: buscá el producto en tu app de Amazon Seller antes de listarlo.</div>';
-
-    // Calculadora con precio de referencia
-    if (refPrice) {
-      const cost = 1.00;
-      const fees = refPrice * 0.15 + 3.5;
-      const profit = refPrice - cost - fees;
-      const roi = ((profit / cost) * 100).toFixed(0);
-      html += '<div class="cost-row"><span>Tu costo (editalo):</span><span>$ <input id="costInput" type="number" value="1.00" step="0.5"></span></div>';
-      html += '<div class="calc" id="calcBox">' + calcRows(refPrice, cost) + '</div>';
-      html += '<div class="small">* Basado en el precio de referencia del mercado, no en el precio en vivo de Amazon. Comisiones estimadas (~15% + envío). El número exacto: FBA Calculator.</div>';
-    }
-    html += '</div>';
-  }
-
-  // Texto para cross-listing
-  const listText = [
-    it.title && "Título: " + it.title,
-    it.brand && "Marca: " + it.brand,
-    it.model && "Modelo: " + it.model,
-    it.color && "Color: " + it.color,
-    it.category && "Categoría: " + it.category,
-    "UPC: " + upc,
-    it.description && "\nDescripción:\n" + it.description,
-  ].filter(Boolean).join("\n");
-
-  html += '<button class="btn btn-pri" style="margin-top:12px" id="btnCopy">📋 Copiar datos para listar</button>';
-  html += '<textarea readonly id="listText">' + listText.replace(/</g,"&lt;") + '</textarea>';
-  html += '<div class="copy-tip">Pegá esto en eBay ("Vender uno como este") o en el formulario de Amazon.</div>';
-  html += '</div>';
-
-  out.innerHTML = html;
-
-  const btnCopy = document.getElementById("btnCopy");
-  if (btnCopy) btnCopy.addEventListener("click", () => {
-    const ta = document.getElementById("listText");
-    ta.select();
-    try { navigator.clipboard.writeText(ta.value); } catch(e) { document.execCommand("copy"); }
-    btnCopy.textContent = "✓ Copiado";
-    setTimeout(() => btnCopy.textContent = "📋 Copiar datos para listar", 1500);
+/* ===================== Almacenamiento (IndexedDB) ===================== */
+const DB_NAME="crosslist-db", STORE="items";
+let _db=null;
+function db(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise((res,rej)=>{
+    const rq=indexedDB.open(DB_NAME,1);
+    rq.onupgradeneeded=()=>{ const d=rq.result;
+      if(!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE,{keyPath:"id"}); };
+    rq.onsuccess=()=>{ _db=rq.result; res(_db); };
+    rq.onerror=()=>rej(rq.error);
   });
+}
+function tx(mode){ return db().then(d=>d.transaction(STORE,mode).objectStore(STORE)); }
+async function dbAll(){ const s=await tx("readonly");
+  return new Promise((res,rej)=>{ const r=s.getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); }
+async function dbGet(id){ const s=await tx("readonly");
+  return new Promise((res,rej)=>{ const r=s.get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+async function dbPut(it){ const s=await tx("readwrite");
+  return new Promise((res,rej)=>{ const r=s.put(it); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
+async function dbDel(id){ const s=await tx("readwrite");
+  return new Promise((res,rej)=>{ const r=s.delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); }
 
-  const costInput = document.getElementById("costInput");
-  if (costInput && refPrice) {
-    costInput.addEventListener("input", () => {
-      const c = parseFloat(costInput.value) || 0;
-      document.getElementById("calcBox").innerHTML = calcRows(refPrice, c);
-    });
+/* ===================== Utilidades ===================== */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
+function money(n){ const v=parseFloat(n); return isNaN(v)?"—":"$"+v.toFixed(2); }
+
+/* Comprime una imagen a JPEG ~1000px para no llenar el almacenamiento. */
+function compress(file){
+  return new Promise((res)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=1000, sc=Math.min(1,max/Math.max(img.width,img.height));
+      const w=Math.round(img.width*sc), h=Math.round(img.height*sc);
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
+      res(c.toDataURL("image/jpeg",0.72));
+    };
+    img.onerror=()=>res(null);
+    img.src=URL.createObjectURL(file);
+  });
+}
+
+/* ===================== Generación de contenido por marketplace ===================== */
+function clip(s,max){ s=(s||"").trim(); return s.length<=max?s:s.slice(0,max-1).trim()+"…"; }
+
+/* Hashtags a partir de marca / categoría / color / talle. */
+function buildTags(it,max){
+  const words=[];
+  const push=v=>{ if(!v) return; v.split(/[\s/]+/).forEach(w=>{ w=w.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]/g,""); if(w.length>2) words.push(w); }); };
+  push(it.brand); push(it.category); push(it.color); if(it.size) words.push("Talle"+it.size.replace(/\s/g,""));
+  (it.keywords||"").split(",").forEach(k=>push(k));
+  const seen=new Set(), tags=[];
+  for(const w of words){ const t="#"+w.charAt(0).toUpperCase()+w.slice(1); const k=t.toLowerCase();
+    if(!seen.has(k)){ seen.add(k); tags.push(t); } if(tags.length>=max) break; }
+  return tags;
+}
+
+/* Título óptimo: marca + título + atributos clave, recortado al límite. */
+function buildTitle(it,m){
+  const parts=[it.brand,it.title,it.size&&("Talle "+it.size),it.color].filter(Boolean);
+  let t=parts.join(" ").replace(/\s+/g," ").trim();
+  if(!t) t=it.title||"Artículo";
+  return clip(t,m.titleMax);
+}
+
+function buildDesc(it,m){
+  const L=[];
+  if(it.description) L.push(it.description.trim());
+  const specs=[];
+  if(it.brand) specs.push("Marca: "+it.brand);
+  if(it.size) specs.push("Talle: "+it.size);
+  if(it.color) specs.push("Color: "+it.color);
+  if(it.condition) specs.push("Estado: "+it.condition);
+  if(it.category) specs.push("Categoría: "+it.category);
+  if(specs.length) L.push((it.description?"\n":"")+specs.join("\n"));
+  if(m.tags){ const tags=buildTags(it,m.maxTags||3); if(tags.length) L.push("\n"+tags.join(" ")); }
+  return clip(L.join("\n").trim(),m.descMax);
+}
+
+/* ===================== Estado de la app ===================== */
+let TAB="list";
+let CURRENT=null;     // id del artículo abierto en detalle
+let EDIT=null;        // borrador en edición (objeto)
+
+/* ===================== Render: navegación ===================== */
+function setTab(t){
+  TAB=t;
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.toggle("on",b.dataset.tab===t));
+  if(t==="list") renderList();
+  else if(t==="new"){ EDIT=blankItem(); CURRENT=null; renderEditor(); }
+  else if(t==="stats") renderStats();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
+
+function blankItem(){
+  return { id:uid(), createdAt:Date.now(), photos:[], title:"", brand:"", category:"",
+    size:"", color:"", condition:"", price:"", origPrice:"", description:"", keywords:"",
+    status:Object.fromEntries(MARKETS.map(m=>[m.id,"none"])) };
+}
+
+/* ===================== Vista: listado ===================== */
+async function renderList(){
+  $("#hsub").textContent="Publicá una vez · vendé en todos lados";
+  const items=(await dbAll()).sort((a,b)=>b.createdAt-a.createdAt);
+  const app=$("#app");
+  if(!items.length){
+    app.innerHTML=`<div class="empty"><div class="big">🏷️</div>
+      <div style="font-size:16px;font-weight:700;color:var(--txt);margin-bottom:6px">Todavía no cargaste nada</div>
+      <div style="font-size:13px;line-height:1.6">Tocá <b style="color:var(--pri)">➕ Nuevo</b> para cargar tu primer artículo.
+      Lo describís una sola vez y lo publicás en eBay, Poshmark, Mercari, Vinted y Facebook.</div>
+      <button class="btn btn-pri" style="margin-top:20px;width:auto;padding:13px 22px" onclick="setTab('new')">➕ Cargar artículo</button>
+      </div>`;
+    return;
   }
+  const q=(window._q||"").toLowerCase();
+  const shown=items.filter(it=>!q || (it.title+" "+it.brand+" "+it.category+" "+it.keywords).toLowerCase().includes(q));
+  let html=`<div class="toolbar">
+      <input class="search" id="searchBox" placeholder="🔎 Buscar por título, marca…" value="${esc(window._q||"")}">
+      <button class="iconbtn" onclick="setTab('new')">➕</button>
+    </div>`;
+  if(!shown.length) html+=`<div class="empty"><div class="big">🔍</div>Sin resultados para "${esc(window._q)}"</div>`;
+  for(const it of shown){
+    const ph=it.photos&&it.photos[0];
+    const live=MARKETS.filter(m=>it.status[m.id]==="listed").length;
+    const sold=MARKETS.some(m=>it.status[m.id]==="sold");
+    html+=`<div class="item" onclick="openItem('${it.id}')">
+      ${ph?`<img class="ph" src="${ph}">`:`<div class="ph">📷</div>`}
+      <div class="info">
+        <div class="it-title">${esc(it.title||"(sin título)")}</div>
+        <div class="it-sub">${esc([it.brand,it.size&&("Talle "+it.size),it.condition].filter(Boolean).join(" · ")||"—")}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span class="it-price">${money(it.price)}</span>
+          ${sold?`<span class="pill" style="background:#00C85320;color:var(--ok)">✓ Vendido</span>`
+                :live?`<span class="pill" style="background:#5B8CFF20;color:var(--pri)">● ${live} activa${live>1?"s":""}</span>`
+                :`<span class="pill" style="background:#ffffff10;color:var(--mut)">Borrador</span>`}
+        </div>
+        <div class="chips">${MARKETS.map(m=>{
+          const s=it.status[m.id];
+          const bg=s==="sold"?"#00C85325":s==="listed"?m.color+"30":"#ffffff08";
+          const col=s==="sold"?"var(--ok)":s==="listed"?"#fff":"var(--mut2)";
+          return `<span class="chip" style="background:${bg};color:${col}">${m.ic==="f"?"FB":m.name.slice(0,4)}</span>`;
+        }).join("")}</div>
+      </div></div>`;
+  }
+  app.innerHTML=html;
+  const sb=$("#searchBox");
+  if(sb) sb.addEventListener("input",e=>{ window._q=e.target.value; clearTimeout(window._qt);
+    window._qt=setTimeout(renderList,180); const v=e.target.value; setTimeout(()=>{const n=$("#searchBox"); if(n){n.focus();n.setSelectionRange(v.length,v.length);}},0); });
 }
 
-function calcRows(price, cost) {
-  const fees = price * 0.15 + 3.5;
-  const profit = price - cost - fees;
-  const roi = cost > 0 ? ((profit / cost) * 100).toFixed(0) : "—";
-  const pc = profit > 0 ? "#00C853" : "#FF4444";
-  const rc = roi > 50 ? "#00C853" : roi > 0 ? "#FF9100" : "#FF4444";
-  return ''
-    + row("Precio de referencia", "$" + price.toFixed(2), "#E8E8FF")
-    + row("Comisiones (~15% + envío)", "-$" + fees.toFixed(2), "#FF9100")
-    + row("Tu costo", "-$" + cost.toFixed(2), "#FF9100")
-    + row("Ganancia estimada", "$" + profit.toFixed(2), pc)
-    + row("ROI", roi + "%", rc);
+/* ===================== Vista: editor ===================== */
+function renderEditor(){
+  $("#hsub").textContent=CURRENT?"Editar artículo":"Nuevo artículo";
+  const it=EDIT;
+  const app=$("#app");
+  app.innerHTML=`
+    <label>Fotos <span class="muted" style="text-transform:none">(la 1ª es la portada)</span></label>
+    <div class="gallery" id="gallery"></div>
+    <input type="file" id="photoIn" accept="image/*" multiple class="hidden" />
+
+    <label for="f_title">Título del artículo *</label>
+    <input id="f_title" placeholder="Ej: Campera de jean oversize" value="${esc(it.title)}">
+
+    <div class="grid2">
+      <div class="field-half"><label for="f_brand">Marca</label>
+        <input id="f_brand" placeholder="Zara, Nike…" value="${esc(it.brand)}"></div>
+      <div class="field-half"><label for="f_price">Precio *</label>
+        <input id="f_price" type="number" inputmode="decimal" placeholder="0.00" value="${esc(it.price)}"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field-half"><label for="f_size">Talle</label>
+        <input id="f_size" placeholder="M, 38, 9.5…" value="${esc(it.size)}"></div>
+      <div class="field-half"><label for="f_color">Color</label>
+        <input id="f_color" placeholder="Negro, Azul…" value="${esc(it.color)}"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="field-half"><label for="f_cat">Categoría</label>
+        <select id="f_cat">${["",...CATEGORIES].map(c=>`<option ${c===it.category?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div class="field-half"><label for="f_cond">Estado</label>
+        <select id="f_cond"><option value=""></option>${CONDITIONS.map(c=>`<option ${c===it.condition?"selected":""}>${c}</option>`).join("")}</select></div>
+    </div>
+
+    <label for="f_orig">Precio original (opcional, ayuda a vender)</label>
+    <input id="f_orig" type="number" inputmode="decimal" placeholder="Precio de venta al público" value="${esc(it.origPrice)}">
+
+    <label for="f_desc">Descripción</label>
+    <textarea id="f_desc" placeholder="Contá detalles, material, medidas, fallas…">${esc(it.description)}</textarea>
+
+    <label for="f_kw">Palabras clave (separadas por coma)</label>
+    <input id="f_kw" placeholder="vintage, y2k, oversize, verano" value="${esc(it.keywords)}">
+    <div class="hint">Se usan para generar hashtags en Poshmark, Mercari y Vinted.</div>
+
+    <div style="display:flex;gap:8px;margin-top:20px">
+      ${CURRENT?`<button class="btn btn-ghost" style="flex:0 0 auto;width:auto;padding:13px 16px;color:var(--bad);border-color:#FF444455" onclick="deleteItem('${it.id}')">🗑️</button>`:""}
+      <button class="btn btn-pri" id="btnSave">💾 Guardar y crosslistear</button>
+    </div>
+    <div style="height:10px"></div>`;
+
+  // galería
+  renderGallery();
+  $("#photoIn").addEventListener("change",onPhotos);
+  $("#btnSave").addEventListener("click",saveEditor);
 }
-function row(k, v, c) {
-  return '<div class="calc-row"><span class="k">' + k + '</span><span style="font-weight:600;color:' + c + '">' + v + '</span></div>';
+
+function renderGallery(){
+  const g=$("#gallery"); if(!g) return;
+  g.innerHTML=EDIT.photos.map((p,i)=>`
+    <div class="photo-wrap">
+      <img src="${p}">
+      ${i===0?`<span class="lead">Portada</span>`:""}
+      <button class="del" onclick="rmPhoto(${i})">✕</button>
+    </div>`).join("")
+    +`<div class="add" onclick="document.getElementById('photoIn').click()"><span style="font-size:24px">＋</span>Agregar</div>`;
 }
+window.rmPhoto=i=>{ EDIT.photos.splice(i,1); renderGallery(); };
+async function onPhotos(e){
+  const files=[...e.target.files].slice(0,12);
+  if(files.length) toast("Procesando fotos…");
+  for(const f of files){ const d=await compress(f); if(d) EDIT.photos.push(d); }
+  renderGallery(); e.target.value="";
+}
+
+function readEditor(){
+  EDIT.title=$("#f_title").value.trim();
+  EDIT.brand=$("#f_brand").value.trim();
+  EDIT.price=$("#f_price").value.trim();
+  EDIT.size=$("#f_size").value.trim();
+  EDIT.color=$("#f_color").value.trim();
+  EDIT.category=$("#f_cat").value;
+  EDIT.condition=$("#f_cond").value;
+  EDIT.origPrice=$("#f_orig").value.trim();
+  EDIT.description=$("#f_desc").value.trim();
+  EDIT.keywords=$("#f_kw").value.trim();
+}
+async function saveEditor(){
+  readEditor();
+  if(!EDIT.title){ toast("Falta el título"); $("#f_title").focus(); return; }
+  if(!EDIT.price){ toast("Falta el precio"); $("#f_price").focus(); return; }
+  await dbPut(EDIT);
+  CURRENT=EDIT.id;
+  toast("Guardado ✓");
+  openItem(EDIT.id);
+}
+async function deleteItem(id){
+  if(!confirm("¿Borrar este artículo? No se puede deshacer.")) return;
+  await dbDel(id); toast("Borrado"); setTab("list");
+}
+
+/* ===================== Vista: detalle / crosslist ===================== */
+async function openItem(id){
+  const it=await dbGet(id); if(!it) return setTab("list");
+  CURRENT=id; EDIT=it; TAB="detail";
+  document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("on"));
+  $("#hsub").textContent="Crosslistear";
+  window.scrollTo(0,0);
+  const app=$("#app");
+
+  const live=MARKETS.filter(m=>it.status[m.id]==="listed").length;
+  const sold=MARKETS.filter(m=>it.status[m.id]==="sold").length;
+
+  let html=`
+    <button class="btn btn-ghost btn-sm" style="margin-bottom:12px" onclick="setTab('list')">← Volver</button>
+    <div class="summary">
+      <div class="st">${esc(it.title)}</div>
+      <div class="sp">${money(it.price)}${it.origPrice?` <span style="font-size:13px;color:var(--mut);font-weight:600;text-decoration:line-through">${money(it.origPrice)}</span>`:""}</div>
+      <div class="ss">${esc([it.brand,it.size&&("Talle "+it.size),it.color,it.condition].filter(Boolean).join(" · ")||"Sin atributos")}</div>
+      <div class="ss" style="margin-top:8px;display:flex;gap:14px">
+        <span>● <b style="color:var(--pri)">${live}</b> activa${live!==1?"s":""}</span>
+        <span>✓ <b style="color:var(--ok)">${sold}</b> vendida${sold!==1?"s":""}</span>
+      </div>
+      <button class="btn btn-sec btn-sm" style="margin-top:12px" onclick="editCurrent()">✏️ Editar datos</button>
+    </div>`;
+
+  if(it.photos&&it.photos.length){
+    html+=`<div class="out-label">Fotos <button class="copybtn" onclick="downloadPhotos('${it.id}')">⬇️ Descargar todas</button></div>
+      <div class="gallery" style="margin-top:8px">${it.photos.map(p=>`<img src="${p}">`).join("")}</div>
+      <div class="hint">Descargá las fotos al rollo y subilas en cada app. (Las plataformas no permiten cargar fotos automáticamente.)</div>`;
+  }
+
+  html+=`<div class="sectitle">Publicá en cada marketplace</div>`;
+  for(const m of MARKETS){
+    const title=buildTitle(it,m), desc=buildDesc(it,m);
+    const tc=title.length>m.titleMax?"count-bad":"count-ok";
+    const st=it.status[m.id];
+    html+=`<div class="mk" id="mk_${m.id}">
+      <div class="mk-head" onclick="toggleMk('${m.id}')">
+        <div class="mk-ic" style="background:${m.color}">${m.ic}</div>
+        <div class="mk-name">${m.name}</div>
+        ${st==="sold"?`<span class="pill" style="background:#00C85320;color:var(--ok)">Vendido</span>`
+          :st==="listed"?`<span class="pill" style="background:${m.color}25;color:#fff">Activo</span>`:""}
+        <span class="caret">▾</span>
+      </div>
+      <div class="mk-body">
+        <div class="out-label">Título <span class="${tc}">${title.length}/${m.titleMax}</span></div>
+        <div class="out-block" id="t_${m.id}">${esc(title)}</div>
+        <button class="copybtn" style="margin-top:8px" onclick="copyText('t_${m.id}')">📋 Copiar título</button>
+
+        <div class="out-label">Descripción <button class="copybtn" onclick="copyText('d_${m.id}')">📋 Copiar</button></div>
+        <div class="out-block" id="d_${m.id}">${esc(desc)}</div>
+
+        <button class="btn btn-pri btn-sm" style="margin-top:12px;width:100%" onclick="openMarket('${m.id}')">
+          🚀 Abrir ${m.name} para publicar</button>
+
+        <div class="statusrow">
+          <button class="${st==='none'?'':''}" onclick="setStatus('${m.id}','none')">○ Sin publicar</button>
+          <button class="${st==='listed'?'act-listed':''}" onclick="setStatus('${m.id}','listed')">● Publicado</button>
+          <button class="${st==='sold'?'act-sold':''}" onclick="setStatus('${m.id}','sold')">✓ Vendido</button>
+        </div>
+      </div></div>`;
+  }
+  html+=`<div style="height:20px"></div>`;
+  app.innerHTML=html;
+}
+window.openItem=openItem;
+window.editCurrent=()=>{ TAB="new"; renderEditor(); $("#hsub").textContent="Editar artículo"; };
+window.toggleMk=id=>$("#mk_"+id).classList.toggle("open");
+
+function copyText(elId){
+  const txt=$("#"+elId).textContent;
+  const done=()=>toast("Copiado ✓");
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(done,()=>fallbackCopy(txt,done)); }
+  else fallbackCopy(txt,done);
+}
+function fallbackCopy(txt,cb){ const ta=document.createElement("textarea"); ta.value=txt;
+  ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); cb(); }catch(e){} document.body.removeChild(ta); }
+window.copyText=copyText;
+
+async function openMarket(id){
+  const m=MARKET_BY[id];
+  // copiamos la descripción al portapapeles para pegarla apenas abra la app
+  copyText("d_"+id);
+  // si todavía no estaba marcado, lo pasamos a "publicado"
+  if(EDIT.status[id]==="none"){ EDIT.status[id]="listed"; await dbPut(EDIT);
+    $("#mk_"+id).querySelectorAll(".statusrow button")[1].classList.add("act-listed"); }
+  window.open(m.url,"_blank","noopener");
+  toast("Descripción copiada · pegala en "+m.name);
+}
+window.openMarket=openMarket;
+
+async function setStatus(id,st){
+  const prev=EDIT.status[id];
+  EDIT.status[id]=st; await dbPut(EDIT);
+  // si marcás VENDIDO y hay otras activas → recordatorio para dar de baja
+  if(st==="sold"){
+    const others=MARKETS.filter(m=>m.id!==id && EDIT.status[m.id]==="listed");
+    if(others.length){
+      if(confirm(`✓ Vendido en ${MARKET_BY[id].name}.\n\n¿Marcar como dado de baja en ${others.map(m=>m.name).join(", ")}?\n(Acordate de borrar la publicación en esas apps para no vender dos veces.)`)){
+        others.forEach(m=>EDIT.status[m.id]="none"); await dbPut(EDIT);
+      }
+    }
+  }
+  openItem(id);
+}
+window.setStatus=setStatus;
+window.deleteItem=deleteItem;
+
+/* Descarga todas las fotos del artículo al dispositivo. */
+async function downloadPhotos(id){
+  const it=await dbGet(id); if(!it) return;
+  it.photos.forEach((p,i)=>{ const a=document.createElement("a"); a.href=p;
+    a.download=(it.title||"foto").replace(/[^\w]/g,"_").slice(0,30)+"_"+(i+1)+".jpg";
+    document.body.appendChild(a); a.click(); a.remove(); });
+  toast(it.photos.length+" foto(s) descargada(s)");
+}
+window.downloadPhotos=downloadPhotos;
+
+/* ===================== Vista: resumen / stats ===================== */
+async function renderStats(){
+  $("#hsub").textContent="Resumen";
+  const items=await dbAll();
+  const live=items.filter(it=>MARKETS.some(m=>it.status[m.id]==="listed")).length;
+  const soldItems=items.filter(it=>MARKETS.some(m=>it.status[m.id]==="sold"));
+  const revenue=soldItems.reduce((s,it)=>s+(parseFloat(it.price)||0),0);
+  const perMarket=MARKETS.map(m=>({m,
+    listed:items.filter(it=>it.status[m.id]==="listed").length,
+    sold:items.filter(it=>it.status[m.id]==="sold").length}));
+  const app=$("#app");
+  app.innerHTML=`
+    <div class="grid2" style="margin-bottom:10px">
+      <div class="summary" style="margin:0"><div class="ss">Artículos</div><div class="sp" style="color:var(--txt)">${items.length}</div></div>
+      <div class="summary" style="margin:0"><div class="ss">Activos</div><div class="sp" style="color:var(--pri)">${live}</div></div>
+    </div>
+    <div class="grid2" style="margin-bottom:14px">
+      <div class="summary" style="margin:0"><div class="ss">Vendidos</div><div class="sp">${soldItems.length}</div></div>
+      <div class="summary" style="margin:0"><div class="ss">Ingresos</div><div class="sp">${money(revenue)}</div></div>
+    </div>
+    <div class="sectitle">Por marketplace</div>
+    ${perMarket.map(({m,listed,sold})=>`
+      <div class="mk"><div class="mk-head" style="cursor:default">
+        <div class="mk-ic" style="background:${m.color}">${m.ic}</div>
+        <div class="mk-name">${m.name}</div>
+        <div class="mk-meta">● ${listed} activos &nbsp; ✓ ${sold} vendidos</div>
+      </div></div>`).join("")}
+    <div class="banner" style="margin-top:16px">💡 <b>Tip:</b> cuando algo se vende, marcalo como <b>Vendido</b> en su tarjeta. La app te recuerda dar de baja la publicación en las otras plataformas para que no lo vendas dos veces.</div>`;
+}
+
+/* ===================== Menú: export / import ===================== */
+$("#btnMenu").addEventListener("click",()=>$("#menuModal").classList.add("show"));
+$("#btnCloseMenu").addEventListener("click",()=>$("#menuModal").classList.remove("show"));
+$("#menuModal").addEventListener("click",e=>{ if(e.target.id==="menuModal") e.target.classList.remove("show"); });
+$("#btnExport").addEventListener("click",async()=>{
+  const items=await dbAll();
+  const blob=new Blob([JSON.stringify({app:"crosslist",version:1,exportedAt:Date.now(),items},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="crosslist-backup-"+new Date().toISOString().slice(0,10)+".json"; a.click();
+  URL.revokeObjectURL(a.href); toast("Copia exportada ✓");
+});
+$("#importFile").addEventListener("change",async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const data=JSON.parse(await f.text());
+    const items=Array.isArray(data)?data:data.items;
+    if(!Array.isArray(items)) throw 0;
+    let n=0;
+    for(const it of items){ if(it&&it.id){ it.status=it.status||Object.fromEntries(MARKETS.map(m=>[m.id,"none"])); await dbPut(it); n++; } }
+    toast("Importados "+n+" artículo(s)"); $("#menuModal").classList.remove("show"); setTab("list");
+  }catch(_){ toast("Archivo inválido"); }
+  e.target.value="";
+});
+
+/* ===================== Service worker (offline / instalable) ===================== */
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+}
+
+/* ===================== Arranque ===================== */
+setTab("list");
 </script>
 </body>
 </html>

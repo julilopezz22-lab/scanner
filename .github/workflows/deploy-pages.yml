@@ -1,0 +1,46 @@
+name: Deploy CrossList to GitHub Pages
+
+# Publica la PWA (sitio estático) en GitHub Pages automáticamente.
+# Funciona tanto desde main como desde la branch de la app.
+on:
+  push:
+    branches:
+      - main
+      - claude/crosslisting-marketplace-app-q7jzk0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un solo deploy a la vez.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # enablement:true prende GitHub Pages la primera vez, sin tocar Settings a mano.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # Subimos la raíz del repo (index.html, manifest, sw.js, íconos, scanner.html).
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
