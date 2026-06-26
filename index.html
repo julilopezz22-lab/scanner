@@ -637,7 +637,8 @@ async function openItem(id){
        </div>`
     : `<div class="hint" style="margin-top:8px;color:var(--warn)">📷 Este artículo no tiene fotos cargadas. Tocá ✏️ Editar (arriba) y agregalas.</div>`;
 
-  html+=`<div class="sectitle">Publicá en cada marketplace</div>`;
+  html+=`<div class="sectitle">Publicá en cada marketplace</div>
+    <div class="banner" style="margin-bottom:12px">📝 <b>Pasos:</b> 1) Copiá título y descripción · 2) Enviá o descargá las fotos · 3) Abrí la app · 4) Pegá, subí las fotos y publicá.</div>`;
   for(const m of MARKETS){
     const title=buildTitle(it,m), desc=buildDesc(it,m);
     const tc=title.length>m.titleMax?"count-bad":"count-ok";
@@ -656,12 +657,14 @@ async function openItem(id){
       </div>
       <div class="mk-body">
         ${payHtml}
+        ${pr?`<div style="margin-top:8px"><button class="copybtn" onclick="copyStr('${pr}')">📋 Copiar precio ${money(pr)}</button></div>`:""}
         <div class="out-label">Título <span class="${tc}">${title.length}/${m.titleMax}</span></div>
         <div class="out-block" id="t_${m.id}">${esc(title)}</div>
         <button class="copybtn" style="margin-top:8px" onclick="copyText('t_${m.id}')">📋 Copiar título</button>
 
         <div class="out-label">Descripción <button class="copybtn" onclick="copyText('d_${m.id}')">📋 Copiar</button></div>
         <div class="out-block" id="d_${m.id}">${esc(desc)}</div>
+        <button class="copybtn" style="margin-top:8px" onclick="copyAll('${m.id}')">📋 Copiar todo (título + descripción)</button>
 
         ${photoBtns}
 
@@ -704,6 +707,16 @@ function fallbackCopy(txt,cb){ const ta=document.createElement("textarea"); ta.v
   ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
   try{ document.execCommand("copy"); cb(); }catch(e){} document.body.removeChild(ta); }
 window.copyText=copyText;
+
+/* Copia una cadena cualquiera (precio, o título+descripción juntos). */
+function copyStr(str){
+  const done=()=>toast("Copiado ✓");
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(str).then(done,()=>fallbackCopy(str,done)); }
+  else fallbackCopy(str,done);
+}
+window.copyStr=copyStr;
+/* Copia título + descripción de una (para pegar todo junto donde haga falta). */
+window.copyAll=mid=>{ const t=($("#t_"+mid)||{}).textContent||"", d=($("#d_"+mid)||{}).textContent||""; copyStr(t+"\n\n"+d); };
 
 function openMarket(id){
   const m=MARKET_BY[id];
