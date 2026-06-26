@@ -208,25 +208,28 @@
    titleMax: límite real de caracteres del título.
    tags: estilo de hashtags que premia cada plataforma.
    url: deep-link a la pantalla "crear publicación".            */
+// app = esquema para abrir la app nativa (si está instalada); url = web de
+// respaldo si la app no está. Estas apps no exponen un link directo al
+// formulario de "crear publicación", así que la app abre en su inicio/vender.
 const MARKETS = [
   { id:"ebay",     name:"eBay",                 color:"#E53238", ic:"e",
     titleMax:80, descMax:4000, tags:false,
-    url:"https://www.ebay.com/sl/sell" },
+    app:"ebay://", url:"https://www.ebay.com/sl/sell" },
   { id:"poshmark", name:"Poshmark",             color:"#822432", ic:"P",
     titleMax:50, descMax:1500, tags:true, maxTags:5,
-    url:"https://poshmark.com/create-listing" },
+    app:"poshmark://", url:"https://poshmark.com/create-listing" },
   { id:"mercari",  name:"Mercari",              color:"#5246F6", ic:"M",
     titleMax:80, descMax:1000, tags:true, maxTags:3,
-    url:"https://www.mercari.com/sell/" },
+    app:"mercari://", url:"https://www.mercari.com/sell/" },
   { id:"vinted",   name:"Vinted",               color:"#09B1BA", ic:"V",
     titleMax:70, descMax:2000, tags:true, maxTags:5,
-    url:"https://www.vinted.com/items/new" },
+    app:"vinted://", url:"https://www.vinted.com/items/new" },
   { id:"depop",    name:"Depop",                color:"#FF2300", ic:"D",
     titleMax:65, descMax:1000, tags:true, maxTags:5,
-    url:"https://www.depop.com/sell/" },
+    app:"depop://", url:"https://www.depop.com/sell/" },
   { id:"facebook", name:"Facebook Marketplace", color:"#1877F2", ic:"f",
     titleMax:100, descMax:5000, tags:false,
-    url:"https://www.facebook.com/marketplace/create/item" },
+    app:"fb://marketplace", url:"https://www.facebook.com/marketplace/create/item" },
 ];
 const MARKET_BY = Object.fromEntries(MARKETS.map(m=>[m.id,m]));
 
@@ -722,18 +725,37 @@ window.copyStr=copyStr;
 /* Copia título + descripción de una (para pegar todo junto donde haga falta). */
 window.copyAll=mid=>{ const t=($("#t_"+mid)||{}).textContent||"", d=($("#d_"+mid)||{}).textContent||""; copyStr(t+"\n\n"+d); };
 
+// Abre la WEB en una pestaña nueva (respaldo confiable en iPhone/Android/PWA).
+function openWeb(url){
+  const a=document.createElement("a");
+  a.href=url; a.target="_blank"; a.rel="noopener noreferrer";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+// Intenta abrir la APP nativa; si en ~1.2s no cambiamos de app (no está
+// instalada), abre la web. Todo dentro del gesto del toque.
+function launchMarket(m){
+  if(!m.app){ openWeb(m.url); return; }
+  let switched=false;
+  const onHide=()=>{ if(document.hidden) switched=true; };
+  document.addEventListener("visibilitychange",onHide);
+  // Disparar el esquema de la app (ebay://, poshmark://, …).
+  try{ window.location.href=m.app; }catch(_){}
+  // Si la app no tomó el control, caemos a la web.
+  setTimeout(()=>{
+    document.removeEventListener("visibilitychange",onHide);
+    if(!switched && !document.hidden) openWeb(m.url);
+  },1200);
+}
+
 function openMarket(id){
   const m=MARKET_BY[id];
-  // 1) ABRIR PRIMERO, sincrónicamente dentro del toque. Si ponemos un await
-  //    (guardar en la base) ANTES, el navegador del celu pierde el "gesto del
-  //    usuario" y bloquea la apertura → se marcaba publicado pero no abría nada.
-  //    Un <a target="_blank"> es lo más confiable en iPhone/Android y PWA.
-  const a=document.createElement("a");
-  a.href=m.url; a.target="_blank"; a.rel="noopener noreferrer";
-  document.body.appendChild(a); a.click(); a.remove();
-  // 2) Copiar la descripción para pegarla apenas abra la app.
+  // 1) ABRIR PRIMERO, dentro del toque (si guardamos antes, el celu bloquea la apertura).
+  //    Intenta la app nativa y cae a la web si no está instalada.
+  launchMarket(m);
+  // 2) Copiar la descripción para pegarla apenas abra.
   copyText("d_"+id);
-  // 3) Marcar como "publicado" (async, ya fuera del gesto: no afecta la apertura).
+  // 3) Marcar como "publicado" (async, no afecta la apertura).
   if(EDIT.status[id]==="none"){
     EDIT.status[id]="listed";
     if(!EDIT.listedAt) EDIT.listedAt=Date.now();
