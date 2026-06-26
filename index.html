@@ -635,7 +635,10 @@ async function openItem(id){
          <button class="copybtn" style="flex:1;padding:11px;font-weight:700" onclick="sharePhotos('${it.id}')">📤 Sacar fotos de la app</button>
          <button class="copybtn" style="flex:0 0 auto;padding:11px;background:#2A2A4A" onclick="downloadPhotos('${it.id}')" title="Descargar al carrete">⬇️</button>
        </div>
-       <div class="hint" style="margin-top:6px">Se abre el menú del celu: elegí la app (eBay, Depop…) para mandarlas directo, o tocá <b>"Guardar imágenes"</b> y te quedan las ${it.photos.length} juntas en el carrete — sin buscar.</div>`
+       <div class="hint" style="margin-top:6px;line-height:1.6">📌 <b>Cómo subirlas a eBay/Depop (2 pasos):</b><br>
+         <b>1)</b> Acá tocá 📤 y elegí <b>"Guardar imágenes"</b> → se guardan en el carrete del celu.<br>
+         <b>2)</b> En eBay tocá <b>"Subir"</b> (no "cámara") y elegí esas ${it.photos.length} fotos de tu galería.<br>
+         <span style="color:var(--mut2)">eBay no muestra otras apps: siempre lee del carrete del celu. Por eso primero hay que guardarlas acá.</span></div>`
     : `<div class="hint" style="margin-top:8px;color:var(--warn)">📷 Este artículo no tiene fotos cargadas. Tocá ✏️ Editar (arriba) y agregalas.</div>`;
 
   html+=`<div class="sectitle">Publicá en cada marketplace</div>
