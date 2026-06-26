@@ -9,9 +9,11 @@ y Facebook Marketplace**. Pensada para ser rápida y funcionar offline.
 - 📷 **Fotos**: subís varias, se comprimen solas y se guardan en el dispositivo.
 - ✍️ **Un solo formulario**: título, marca, talle, color, estado, precio, **medidas**,
   descripción y palabras clave.
-- 🤖 **Contenido por marketplace**: para cada plataforma genera el **título recortado a su
-  límite** real de caracteres y una **descripción con hashtags** adaptados (Poshmark,
-  Mercari, Vinted y Depop los premian; eBay y Facebook no).
+- 🤖 **Contenido por marketplace (en inglés)**: para cada plataforma genera el **título
+  recortado a su límite** real de caracteres y una **descripción con hashtags** adaptados
+  (Poshmark, Mercari, Vinted y Depop los premian; eBay y Facebook no). Todo lo que se
+  publica sale en **inglés** (Brand/Size/Condition…), que es el idioma de los compradores;
+  la interfaz queda en español.
 - 📐 **Medidas**: las cargás una vez y se suman a la descripción de cada plataforma (bajan
   preguntas y devoluciones).
 - 🧩 **Plantillas de descripción**: guardás textos que reusás siempre (envío, devoluciones,

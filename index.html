@@ -230,13 +230,36 @@ const MARKETS = [
 ];
 const MARKET_BY = Object.fromEntries(MARKETS.map(m=>[m.id,m]));
 
+/* El valor guardado/publicado es en INGLÉS (en); la etiqueta que ves es en
+   español (es). Así la interfaz queda en español pero el cross-listing sale
+   100% en inglés, que es el idioma de los compradores en estas plataformas. */
 const CONDITIONS = [
-  "Nuevo con etiqueta","Nuevo sin etiqueta","Como nuevo","Muy bueno","Bueno","Aceptable"
+  {en:"New with tags",    es:"Nuevo con etiqueta"},
+  {en:"New without tags", es:"Nuevo sin etiqueta"},
+  {en:"Like new",         es:"Como nuevo"},
+  {en:"Very good",        es:"Muy bueno"},
+  {en:"Good",             es:"Bueno"},
+  {en:"Fair",             es:"Aceptable"},
 ];
 const CATEGORIES = [
-  "Ropa mujer","Ropa hombre","Calzado","Carteras y bolsos","Accesorios","Joyería",
-  "Belleza","Electrónica","Hogar","Juguetes","Niños / Bebé","Deportes","Libros","Otro"
+  {en:"Women's clothing", es:"Ropa mujer"},
+  {en:"Men's clothing",   es:"Ropa hombre"},
+  {en:"Shoes",            es:"Calzado"},
+  {en:"Bags & purses",    es:"Carteras y bolsos"},
+  {en:"Accessories",      es:"Accesorios"},
+  {en:"Jewelry",          es:"Joyería"},
+  {en:"Beauty",           es:"Belleza"},
+  {en:"Electronics",      es:"Electrónica"},
+  {en:"Home",             es:"Hogar"},
+  {en:"Toys",             es:"Juguetes"},
+  {en:"Kids / Baby",      es:"Niños / Bebé"},
+  {en:"Sports",           es:"Deportes"},
+  {en:"Books",            es:"Libros"},
+  {en:"Other",            es:"Otro"},
 ];
+// Mapas para migrar artículos viejos guardados en español → inglés.
+const COND_ES2EN=Object.fromEntries(CONDITIONS.map(c=>[c.es,c.en]));
+const CAT_ES2EN =Object.fromEntries(CATEGORIES.map(c=>[c.es,c.en]));
 
 /* ===================== Almacenamiento (IndexedDB) ===================== */
 const DB_NAME="crosslist-db", STORE="items";
@@ -276,6 +299,9 @@ function ensure(it){ if(!it) return it; if(!it.status) it.status={};
   if(it.measurements==null) it.measurements="";
   if(it.listedAt===undefined){ const anyLive=MARKETS.some(m=>it.status[m.id]==="listed");
     it.listedAt=anyLive?(it.createdAt||Date.now()):null; }
+  // Migrar estado/categoría guardados en español a inglés.
+  if(it.condition && COND_ES2EN[it.condition]) it.condition=COND_ES2EN[it.condition];
+  if(it.category  && CAT_ES2EN[it.category])   it.category =CAT_ES2EN[it.category];
   return it; }
 
 /* Días desde un timestamp (para el recordatorio de bajar precio). */
@@ -346,7 +372,7 @@ function clip(s,max){ s=(s||"").trim(); return s.length<=max?s:s.slice(0,max-1).
 function buildTags(it,max){
   const words=[];
   const push=v=>{ if(!v) return; v.split(/[\s/]+/).forEach(w=>{ w=w.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9]/g,""); if(w.length>2) words.push(w); }); };
-  push(it.brand); push(it.category); push(it.color); if(it.size) words.push("Talle"+it.size.replace(/\s/g,""));
+  push(it.brand); push(it.category); push(it.color); if(it.size) words.push("Size"+it.size.replace(/\s/g,""));
   (it.keywords||"").split(",").forEach(k=>push(k));
   const seen=new Set(), tags=[];
   for(const w of words){ const t="#"+w.charAt(0).toUpperCase()+w.slice(1); const k=t.toLowerCase();
@@ -356,7 +382,7 @@ function buildTags(it,max){
 
 /* Título óptimo: marca + título + atributos clave, recortado al límite. */
 function buildTitle(it,m){
-  const parts=[it.brand,it.title,it.size&&("Talle "+it.size),it.color].filter(Boolean);
+  const parts=[it.brand,it.title,it.size&&("Size "+it.size),it.color].filter(Boolean);
   let t=parts.join(" ").replace(/\s+/g," ").trim();
   if(!t) t=it.title||"Artículo";
   return clip(t,m.titleMax);
@@ -366,13 +392,13 @@ function buildDesc(it,m){
   const L=[];
   if(it.description) L.push(it.description.trim());
   const specs=[];
-  if(it.brand) specs.push("Marca: "+it.brand);
-  if(it.size) specs.push("Talle: "+it.size);
+  if(it.brand) specs.push("Brand: "+it.brand);
+  if(it.size) specs.push("Size: "+it.size);
   if(it.color) specs.push("Color: "+it.color);
-  if(it.condition) specs.push("Estado: "+it.condition);
-  if(it.category) specs.push("Categoría: "+it.category);
+  if(it.condition) specs.push("Condition: "+it.condition);
+  if(it.category) specs.push("Category: "+it.category);
   if(specs.length) L.push((it.description?"\n":"")+specs.join("\n"));
-  if(it.measurements) L.push("\nMedidas:\n"+it.measurements.trim());
+  if(it.measurements) L.push("\nMeasurements:\n"+it.measurements.trim());
   if(m.tags){ const tags=buildTags(it,m.maxTags||3); if(tags.length) L.push("\n"+tags.join(" ")); }
   return clip(L.join("\n").trim(),m.descMax);
 }
@@ -480,9 +506,9 @@ function renderEditor(){
 
     <div class="grid2">
       <div class="field-half"><label for="f_cat">Categoría</label>
-        <select id="f_cat">${["",...CATEGORIES].map(c=>`<option ${c===it.category?"selected":""}>${c}</option>`).join("")}</select></div>
+        <select id="f_cat"><option value=""></option>${CATEGORIES.map(c=>`<option value="${c.en}" ${c.en===it.category?"selected":""}>${c.es}</option>`).join("")}</select></div>
       <div class="field-half"><label for="f_cond">Estado</label>
-        <select id="f_cond"><option value=""></option>${CONDITIONS.map(c=>`<option ${c===it.condition?"selected":""}>${c}</option>`).join("")}</select></div>
+        <select id="f_cond"><option value=""></option>${CONDITIONS.map(c=>`<option value="${c.en}" ${c.en===it.condition?"selected":""}>${c.es}</option>`).join("")}</select></div>
     </div>
 
     <label for="f_orig">Precio original (opcional, ayuda a vender)</label>
@@ -492,8 +518,9 @@ function renderEditor(){
     <textarea id="f_meas" style="min-height:64px" placeholder="Pecho 52cm · Largo 70cm · Manga 61cm · Cintura 40cm">${esc(it.measurements||"")}</textarea>
     <div class="hint">Se agregan a la descripción de cada plataforma. Bajan preguntas y devoluciones.</div>
 
-    <label for="f_desc">Descripción</label>
-    <textarea id="f_desc" placeholder="Contá detalles, material, fallas…">${esc(it.description)}</textarea>
+    <label for="f_desc">Descripción <span class="muted" style="text-transform:none">(escribila en inglés)</span></label>
+    <textarea id="f_desc" placeholder="Write in English: details, material, fit, flaws…">${esc(it.description)}</textarea>
+    <div class="hint">El título, los datos (Brand/Size/Condition…) y los hashtags ya se generan en inglés. Esta parte la escribís vos — hacelo en inglés para que todo el aviso quede en un solo idioma.</div>
     <div class="tplrow" id="tplRow"></div>
 
     <label for="f_kw">Palabras clave (separadas por coma)</label>
