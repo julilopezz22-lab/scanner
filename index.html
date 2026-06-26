@@ -630,11 +630,12 @@ async function openItem(id){
   // a mano justo cuando vas a publicar). Subirlas siempre es manual.
   const hasPhotos = it.photos && it.photos.length;
   const photoBtns = hasPhotos
-    ? `<div class="out-label">📷 Fotos (${it.photos.length}) <span class="muted" style="text-transform:none">— subilas vos</span></div>
+    ? `<div class="out-label">📷 Fotos (${it.photos.length})</div>
        <div style="display:flex;gap:6px;margin-top:6px">
-         <button class="copybtn" style="flex:1;padding:9px" onclick="sharePhotos('${it.id}')">📤 Enviar fotos</button>
-         <button class="copybtn" style="flex:1;padding:9px;background:#2A2A4A" onclick="downloadPhotos('${it.id}')">⬇️ Descargar fotos</button>
-       </div>`
+         <button class="copybtn" style="flex:1;padding:11px;font-weight:700" onclick="sharePhotos('${it.id}')">📤 Sacar fotos de la app</button>
+         <button class="copybtn" style="flex:0 0 auto;padding:11px;background:#2A2A4A" onclick="downloadPhotos('${it.id}')" title="Descargar al carrete">⬇️</button>
+       </div>
+       <div class="hint" style="margin-top:6px">Se abre el menú del celu: elegí la app (eBay, Depop…) para mandarlas directo, o tocá <b>"Guardar imágenes"</b> y te quedan las ${it.photos.length} juntas en el carrete — sin buscar.</div>`
     : `<div class="hint" style="margin-top:8px;color:var(--warn)">📷 Este artículo no tiene fotos cargadas. Tocá ✏️ Editar (arriba) y agregalas.</div>`;
 
   html+=`<div class="sectitle">Publicá en cada marketplace</div>
@@ -761,9 +762,14 @@ async function setStatus(id,st){
 window.setStatus=setStatus;
 window.deleteItem=deleteItem;
 
+/* El artículo abierto está SIEMPRE en memoria (EDIT). Lo usamos directo, sin
+   esperar a la base, para que compartir/descargar ocurra DENTRO del toque del
+   usuario — si no, el celu lo bloquea (mismo motivo que el botón de eBay). */
+function currentItem(id){ return (EDIT && EDIT.id===id) ? EDIT : null; }
+
 /* Descarga todas las fotos del artículo al dispositivo. */
-async function downloadPhotos(id){
-  const it=await dbGet(id); if(!it) return;
+function downloadPhotos(id){
+  const it=currentItem(id); if(!it||!it.photos||!it.photos.length) return toast("No hay fotos");
   it.photos.forEach((p,i)=>{ const a=document.createElement("a"); a.href=p;
     a.download=(it.title||"foto").replace(/[^\w]/g,"_").slice(0,30)+"_"+(i+1)+".jpg";
     document.body.appendChild(a); a.click(); a.remove(); });
@@ -776,17 +782,22 @@ function shareText(it){
   return buildTitle(it,{titleMax:80})+" — "+money(it.price)+"\n\n"
     +buildDesc(it,{tags:true,maxTags:5,descMax:1500});
 }
-/* Comparte las fotos del artículo al selector del sistema (iOS/Android).
-   Desde ahí elegís Depop, Instagram, WhatsApp, etc. y se suben directo. */
-async function sharePhotos(id){
-  const it=ensure(await dbGet(id)); if(!it||!it.photos||!it.photos.length) return toast("No hay fotos");
+/* Comparte las fotos al selector del sistema (iOS/Android). Desde ahí elegís la
+   app (eBay, Depop, Instagram…) o "Guardar imágenes" para tenerlas todas juntas
+   en el carrete. SIN await antes de navigator.share: se llama dentro del gesto. */
+function sharePhotos(id){
+  const it=currentItem(id); if(!it||!it.photos||!it.photos.length) return toast("No hay fotos");
   const slug=(it.title||"foto").replace(/[^\w]/g,"_").slice(0,24);
   const files=it.photos.map((p,i)=>dataURLtoFile(p,slug+"_"+(i+1)+".jpg"));
   if(navigator.canShare && navigator.canShare({files})){
-    try{ await navigator.share({files, text:shareText(it)}); }
-    catch(e){ /* el usuario canceló */ }
+    navigator.share({files, text:shareText(it)}).catch(()=>{/* cancelado */});
+  } else if(navigator.share){
+    // Algunos navegadores comparten solo texto: avisamos y caemos a descargar.
+    toast("Este navegador no manda fotos por el menú — usá Descargar");
+    downloadPhotos(id);
   } else {
-    toast("Tu navegador no comparte archivos — usá Descargar");
+    toast("Tu navegador no soporta compartir — usá Descargar");
+    downloadPhotos(id);
   }
 }
 window.sharePhotos=sharePhotos;
