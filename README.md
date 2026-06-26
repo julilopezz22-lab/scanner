@@ -1,17 +1,23 @@
 # CrossList 🏷️
 
 App de celular (PWA) para **crosslistear**: cargás un artículo **una sola vez** y la app
-genera el contenido optimizado para publicarlo en **eBay, Poshmark, Mercari, Vinted y
-Facebook Marketplace**. Pensada para ser rápida y funcionar offline.
+genera el contenido optimizado para publicarlo en **eBay, Poshmark, Mercari, Vinted, Depop
+y Facebook Marketplace**. Pensada para ser rápida y funcionar offline.
 
 ## Qué hace
 
 - 📷 **Fotos**: subís varias, se comprimen solas y se guardan en el dispositivo.
-- ✍️ **Un solo formulario**: título, marca, talle, color, estado, precio, descripción y
-  palabras clave.
+- ✍️ **Un solo formulario**: título, marca, talle, color, estado, precio, **medidas**,
+  descripción y palabras clave.
 - 🤖 **Contenido por marketplace**: para cada plataforma genera el **título recortado a su
   límite** real de caracteres y una **descripción con hashtags** adaptados (Poshmark,
-  Mercari y Vinted los premian; eBay y Facebook no).
+  Mercari, Vinted y Depop los premian; eBay y Facebook no).
+- 📐 **Medidas**: las cargás una vez y se suman a la descripción de cada plataforma (bajan
+  preguntas y devoluciones).
+- 🧩 **Plantillas de descripción**: guardás textos que reusás siempre (envío, devoluciones,
+  cuidado) y los insertás con un toque.
+- 📤 **Compartir fotos**: mandás las fotos del artículo directo al selector del celu
+  (Depop, Instagram, WhatsApp…) o las descargás al rollo.
 - 📋 **Copiar con un toque** título y descripción, y **abrir cada app** en la pantalla de
   "crear publicación".
 - 🔄 **Tracking de estado** por plataforma: *sin publicar / publicado / vendido*.
