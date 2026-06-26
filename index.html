@@ -692,16 +692,27 @@ function fallbackCopy(txt,cb){ const ta=document.createElement("textarea"); ta.v
   try{ document.execCommand("copy"); cb(); }catch(e){} document.body.removeChild(ta); }
 window.copyText=copyText;
 
-async function openMarket(id){
+function openMarket(id){
   const m=MARKET_BY[id];
-  // copiamos la descripción al portapapeles para pegarla apenas abra la app
+  // 1) ABRIR PRIMERO, sincrónicamente dentro del toque. Si ponemos un await
+  //    (guardar en la base) ANTES, el navegador del celu pierde el "gesto del
+  //    usuario" y bloquea la apertura → se marcaba publicado pero no abría nada.
+  //    Un <a target="_blank"> es lo más confiable en iPhone/Android y PWA.
+  const a=document.createElement("a");
+  a.href=m.url; a.target="_blank"; a.rel="noopener noreferrer";
+  document.body.appendChild(a); a.click(); a.remove();
+  // 2) Copiar la descripción para pegarla apenas abra la app.
   copyText("d_"+id);
-  // si todavía no estaba marcado, lo pasamos a "publicado"
-  if(EDIT.status[id]==="none"){ EDIT.status[id]="listed";
-    if(!EDIT.listedAt) EDIT.listedAt=Date.now(); await dbPut(EDIT);
-    $("#mk_"+id).querySelectorAll(".statusrow button")[1].classList.add("act-listed"); }
-  window.open(m.url,"_blank","noopener");
-  toast("Descripción copiada · pegala en "+m.name);
+  // 3) Marcar como "publicado" (async, ya fuera del gesto: no afecta la apertura).
+  if(EDIT.status[id]==="none"){
+    EDIT.status[id]="listed";
+    if(!EDIT.listedAt) EDIT.listedAt=Date.now();
+    dbPut(EDIT).then(()=>{
+      const card=$("#mk_"+id);
+      if(card){ const btns=card.querySelectorAll(".statusrow button"); if(btns[1]) btns[1].classList.add("act-listed"); }
+    });
+  }
+  toast("Abriendo "+m.name+" · descripción copiada");
 }
 window.openMarket=openMarket;
 
