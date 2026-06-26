@@ -132,6 +132,14 @@
   .banner{background:#16162A;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;
     color:var(--mut);line-height:1.6;margin-bottom:14px}
   .sectitle{font-size:11px;color:var(--mut2);text-transform:uppercase;letter-spacing:.6px;margin:18px 0 8px;font-weight:700}
+  .tplrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tplchip{background:var(--panel);border:1px solid var(--line);color:#A8A8D0;border-radius:999px;
+    padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer}
+  .tplchip.manage{color:var(--mut);border-style:dashed}
+  .tpl-item{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;margin-bottom:8px}
+  .tpl-item .nm{flex:1;font-size:13px;font-weight:600}
+  .tpl-item button{background:none;border:none;cursor:pointer;font-size:14px}
   .hidden{display:none!important}
 </style>
 </head>
@@ -154,6 +162,20 @@
   </nav>
 
   <div class="toast" id="toast"></div>
+
+  <!-- Plantillas de descripción -->
+  <div class="modal-bg" id="tplModal">
+    <div class="modal">
+      <h3>Plantillas de descripción</h3>
+      <p>Texto que reusás seguido (envío, devoluciones, cuidado de la prenda…). Tocá una en el editor para insertarla.</p>
+      <div id="tplList"></div>
+      <label for="tplName" style="margin-top:14px">Nueva plantilla</label>
+      <input id="tplName" placeholder="Nombre (ej: Envío)" />
+      <textarea id="tplText" placeholder="Texto a insertar…" style="margin-top:8px"></textarea>
+      <button class="btn btn-pri" id="tplSave" style="margin-top:10px">＋ Guardar plantilla</button>
+      <button class="btn btn-ghost" id="tplClose" style="margin-top:8px">Cerrar</button>
+    </div>
+  </div>
 
   <!-- Menú -->
   <div class="modal-bg" id="menuModal">
@@ -193,6 +215,9 @@ const MARKETS = [
   { id:"vinted",   name:"Vinted",               color:"#09B1BA", ic:"V",
     titleMax:70, descMax:2000, tags:true, maxTags:5,
     url:"https://www.vinted.com/items/new" },
+  { id:"depop",    name:"Depop",                color:"#FF2300", ic:"D",
+    titleMax:65, descMax:1000, tags:true, maxTags:5,
+    url:"https://www.depop.com/sell/" },
   { id:"facebook", name:"Facebook Marketplace", color:"#1877F2", ic:"f",
     titleMax:100, descMax:5000, tags:false,
     url:"https://www.facebook.com/marketplace/create/item" },
@@ -237,6 +262,33 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
 function money(n){ const v=parseFloat(n); return isNaN(v)?"—":"$"+v.toFixed(2); }
+
+/* Completa campos nuevos (Depop, medidas) en artículos viejos sin romperlos. */
+function ensure(it){ if(!it) return it; if(!it.status) it.status={};
+  for(const m of MARKETS) if(!(m.id in it.status)) it.status[m.id]="none";
+  if(it.measurements==null) it.measurements=""; return it; }
+
+/* dataURL → File, para poder compartir las fotos al selector del sistema. */
+function dataURLtoFile(d,name){ const [h,b]=d.split(","); const mime=(h.match(/:(.*?);/)||[])[1]||"image/jpeg";
+  const bin=atob(b); const u=new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new File([u],name,{type:mime}); }
+
+/* ===================== Plantillas de descripción (localStorage) ===================== */
+const TPL_KEY="crosslist-templates";
+function getTpls(){ try{ return JSON.parse(localStorage.getItem(TPL_KEY))||[]; }catch(_){ return []; } }
+function saveTpls(a){ localStorage.setItem(TPL_KEY,JSON.stringify(a)); }
+function renderTplRow(){ const r=$("#tplRow"); if(!r) return; const tpls=getTpls();
+  r.innerHTML=tpls.map(t=>`<span class="tplchip" onclick="insertTpl('${t.id}')">＋ ${esc(t.name)}</span>`).join("")
+    +`<span class="tplchip manage" onclick="openTplModal()">⚙️ Plantillas</span>`; }
+window.insertTpl=id=>{ const t=getTpls().find(x=>x.id===id); if(!t) return; const ta=$("#f_desc"); if(!ta) return;
+  ta.value=(ta.value.trim()?ta.value.trim()+"\n":"")+t.text; ta.focus(); toast("Plantilla insertada"); };
+function openTplModal(){ renderTplList(); $("#tplModal").classList.add("show"); }
+window.openTplModal=openTplModal;
+function renderTplList(){ const tpls=getTpls(); const el=$("#tplList"); if(!el) return;
+  el.innerHTML=tpls.length?tpls.map(t=>`<div class="tpl-item"><span class="nm">${esc(t.name)}</span>
+    <button onclick="delTpl('${t.id}')" style="color:var(--bad)">🗑️</button></div>`).join("")
+    :`<div class="hint">Todavía no tenés plantillas. Creá una abajo 👇</div>`; }
+window.delTpl=id=>{ saveTpls(getTpls().filter(t=>t.id!==id)); renderTplList(); renderTplRow(); };
 
 /* Comprime una imagen a JPEG ~1000px para no llenar el almacenamiento. */
 function compress(file){
@@ -287,6 +339,7 @@ function buildDesc(it,m){
   if(it.condition) specs.push("Estado: "+it.condition);
   if(it.category) specs.push("Categoría: "+it.category);
   if(specs.length) L.push((it.description?"\n":"")+specs.join("\n"));
+  if(it.measurements) L.push("\nMedidas:\n"+it.measurements.trim());
   if(m.tags){ const tags=buildTags(it,m.maxTags||3); if(tags.length) L.push("\n"+tags.join(" ")); }
   return clip(L.join("\n").trim(),m.descMax);
 }
@@ -309,14 +362,14 @@ document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",(
 
 function blankItem(){
   return { id:uid(), createdAt:Date.now(), photos:[], title:"", brand:"", category:"",
-    size:"", color:"", condition:"", price:"", origPrice:"", description:"", keywords:"",
+    size:"", color:"", condition:"", price:"", origPrice:"", description:"", keywords:"", measurements:"",
     status:Object.fromEntries(MARKETS.map(m=>[m.id,"none"])) };
 }
 
 /* ===================== Vista: listado ===================== */
 async function renderList(){
   $("#hsub").textContent="Publicá una vez · vendé en todos lados";
-  const items=(await dbAll()).sort((a,b)=>b.createdAt-a.createdAt);
+  const items=(await dbAll()).map(ensure).sort((a,b)=>b.createdAt-a.createdAt);
   const app=$("#app");
   if(!items.length){
     app.innerHTML=`<div class="empty"><div class="big">🏷️</div>
@@ -400,12 +453,17 @@ function renderEditor(){
     <label for="f_orig">Precio original (opcional, ayuda a vender)</label>
     <input id="f_orig" type="number" inputmode="decimal" placeholder="Precio de venta al público" value="${esc(it.origPrice)}">
 
+    <label for="f_meas">Medidas <span class="muted" style="text-transform:none">(opcional, ideal para ropa)</span></label>
+    <textarea id="f_meas" style="min-height:64px" placeholder="Pecho 52cm · Largo 70cm · Manga 61cm · Cintura 40cm">${esc(it.measurements||"")}</textarea>
+    <div class="hint">Se agregan a la descripción de cada plataforma. Bajan preguntas y devoluciones.</div>
+
     <label for="f_desc">Descripción</label>
-    <textarea id="f_desc" placeholder="Contá detalles, material, medidas, fallas…">${esc(it.description)}</textarea>
+    <textarea id="f_desc" placeholder="Contá detalles, material, fallas…">${esc(it.description)}</textarea>
+    <div class="tplrow" id="tplRow"></div>
 
     <label for="f_kw">Palabras clave (separadas por coma)</label>
     <input id="f_kw" placeholder="vintage, y2k, oversize, verano" value="${esc(it.keywords)}">
-    <div class="hint">Se usan para generar hashtags en Poshmark, Mercari y Vinted.</div>
+    <div class="hint">Se usan para generar hashtags en Poshmark, Mercari, Vinted y Depop.</div>
 
     <div style="display:flex;gap:8px;margin-top:20px">
       ${CURRENT?`<button class="btn btn-ghost" style="flex:0 0 auto;width:auto;padding:13px 16px;color:var(--bad);border-color:#FF444455" onclick="deleteItem('${it.id}')">🗑️</button>`:""}
@@ -415,6 +473,7 @@ function renderEditor(){
 
   // galería
   renderGallery();
+  renderTplRow();
   $("#photoIn").addEventListener("change",onPhotos);
   $("#btnSave").addEventListener("click",saveEditor);
 }
@@ -448,6 +507,7 @@ function readEditor(){
   EDIT.origPrice=$("#f_orig").value.trim();
   EDIT.description=$("#f_desc").value.trim();
   EDIT.keywords=$("#f_kw").value.trim();
+  EDIT.measurements=$("#f_meas").value.trim();
 }
 async function saveEditor(){
   readEditor();
@@ -465,7 +525,7 @@ async function deleteItem(id){
 
 /* ===================== Vista: detalle / crosslist ===================== */
 async function openItem(id){
-  const it=await dbGet(id); if(!it) return setTab("list");
+  const it=ensure(await dbGet(id)); if(!it) return setTab("list");
   CURRENT=id; EDIT=it; TAB="detail";
   document.querySelectorAll(".nav button").forEach(b=>b.classList.remove("on"));
   $("#hsub").textContent="Crosslistear";
@@ -489,9 +549,13 @@ async function openItem(id){
     </div>`;
 
   if(it.photos&&it.photos.length){
-    html+=`<div class="out-label">Fotos <button class="copybtn" onclick="downloadPhotos('${it.id}')">⬇️ Descargar todas</button></div>
+    html+=`<div class="out-label">Fotos
+        <span style="display:flex;gap:6px">
+          <button class="copybtn" onclick="sharePhotos('${it.id}')">📤 Compartir</button>
+          <button class="copybtn" style="background:#2A2A4A" onclick="downloadPhotos('${it.id}')">⬇️ Descargar</button>
+        </span></div>
       <div class="gallery" style="margin-top:8px">${it.photos.map(p=>`<img src="${p}">`).join("")}</div>
-      <div class="hint">Descargá las fotos al rollo y subilas en cada app. (Las plataformas no permiten cargar fotos automáticamente.)</div>`;
+      <div class="hint">📤 <b>Compartir</b> abre el selector del celu para mandar las fotos directo a Depop, Instagram, etc. ⬇️ <b>Descargar</b> las guarda en el rollo para subirlas a mano.</div>`;
   }
 
   html+=`<div class="sectitle">Publicá en cada marketplace</div>`;
@@ -582,10 +646,30 @@ async function downloadPhotos(id){
 }
 window.downloadPhotos=downloadPhotos;
 
+/* Texto sugerido para acompañar las fotos al compartir (título + precio + tags). */
+function shareText(it){
+  return buildTitle(it,{titleMax:80})+" — "+money(it.price)+"\n\n"
+    +buildDesc(it,{tags:true,maxTags:5,descMax:1500});
+}
+/* Comparte las fotos del artículo al selector del sistema (iOS/Android).
+   Desde ahí elegís Depop, Instagram, WhatsApp, etc. y se suben directo. */
+async function sharePhotos(id){
+  const it=ensure(await dbGet(id)); if(!it||!it.photos||!it.photos.length) return toast("No hay fotos");
+  const slug=(it.title||"foto").replace(/[^\w]/g,"_").slice(0,24);
+  const files=it.photos.map((p,i)=>dataURLtoFile(p,slug+"_"+(i+1)+".jpg"));
+  if(navigator.canShare && navigator.canShare({files})){
+    try{ await navigator.share({files, text:shareText(it)}); }
+    catch(e){ /* el usuario canceló */ }
+  } else {
+    toast("Tu navegador no comparte archivos — usá Descargar");
+  }
+}
+window.sharePhotos=sharePhotos;
+
 /* ===================== Vista: resumen / stats ===================== */
 async function renderStats(){
   $("#hsub").textContent="Resumen";
-  const items=await dbAll();
+  const items=(await dbAll()).map(ensure);
   const live=items.filter(it=>MARKETS.some(m=>it.status[m.id]==="listed")).length;
   const soldItems=items.filter(it=>MARKETS.some(m=>it.status[m.id]==="sold"));
   const revenue=soldItems.reduce((s,it)=>s+(parseFloat(it.price)||0),0);
@@ -616,6 +700,17 @@ async function renderStats(){
 $("#btnMenu").addEventListener("click",()=>$("#menuModal").classList.add("show"));
 $("#btnCloseMenu").addEventListener("click",()=>$("#menuModal").classList.remove("show"));
 $("#menuModal").addEventListener("click",e=>{ if(e.target.id==="menuModal") e.target.classList.remove("show"); });
+
+// Plantillas
+$("#tplSave").addEventListener("click",()=>{
+  const n=$("#tplName").value.trim(), tx=$("#tplText").value.trim();
+  if(!n||!tx){ toast("Completá nombre y texto"); return; }
+  const a=getTpls(); a.push({id:uid(),name:n,text:tx}); saveTpls(a);
+  $("#tplName").value=""; $("#tplText").value="";
+  renderTplList(); renderTplRow(); toast("Plantilla guardada ✓");
+});
+$("#tplClose").addEventListener("click",()=>$("#tplModal").classList.remove("show"));
+$("#tplModal").addEventListener("click",e=>{ if(e.target.id==="tplModal") e.target.classList.remove("show"); });
 $("#btnExport").addEventListener("click",async()=>{
   const items=await dbAll();
   const blob=new Blob([JSON.stringify({app:"crosslist",version:1,exportedAt:Date.now(),items},null,2)],{type:"application/json"});
