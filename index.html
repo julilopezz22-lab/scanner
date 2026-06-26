@@ -218,12 +218,15 @@ const MARKETS = [
   { id:"poshmark", name:"Poshmark",             color:"#822432", ic:"P",
     titleMax:50, descMax:1500, tags:true, maxTags:5,
     app:"poshmark://", url:"https://poshmark.com/create-listing" },
+  // Mercari y Vinted no exponen un esquema tipo "app://" confiable; usan
+  // Universal Links. Por eso (sin "app") su botón es un <a> real: un toque
+  // genuino deja que iOS/Android lo deriven a la app instalada si la reconoce.
   { id:"mercari",  name:"Mercari",              color:"#5246F6", ic:"M",
     titleMax:80, descMax:1000, tags:true, maxTags:3,
-    app:"mercari://", url:"https://www.mercari.com/sell/" },
+    url:"https://www.mercari.com/sell/" },
   { id:"vinted",   name:"Vinted",               color:"#09B1BA", ic:"V",
     titleMax:70, descMax:2000, tags:true, maxTags:5,
-    app:"vinted://", url:"https://www.vinted.com/items/new" },
+    url:"https://www.vinted.com/items/new" },
   { id:"depop",    name:"Depop",                color:"#FF2300", ic:"D",
     titleMax:65, descMax:1000, tags:true, maxTags:5,
     app:"depop://", url:"https://www.depop.com/sell/" },
@@ -675,8 +678,9 @@ async function openItem(id){
 
         ${photoBtns}
 
-        <button class="btn btn-pri btn-sm" style="margin-top:12px;width:100%" onclick="openMarket('${m.id}')">
-          🚀 Abrir ${m.name} para publicar</button>
+        ${m.app
+          ? `<button class="btn btn-pri btn-sm" style="margin-top:12px;width:100%" onclick="openMarket('${m.id}')">🚀 Abrir ${m.name} para publicar</button>`
+          : `<a class="btn btn-pri btn-sm" style="margin-top:12px;width:100%;text-decoration:none;display:flex;align-items:center;justify-content:center" href="${m.url}" target="_blank" rel="noopener noreferrer" onclick="prepOpen('${m.id}')">🚀 Abrir ${m.name} para publicar</a>`}
 
         <div class="statusrow">
           <button class="${st==='none'?'':''}" onclick="setStatus('${m.id}','none')">○ Sin publicar</button>
@@ -767,6 +771,23 @@ function openMarket(id){
   toast("Abriendo "+m.name+" · descripción copiada");
 }
 window.openMarket=openMarket;
+
+/* Para Mercari/Vinted el botón es un <a> real (lo abre el navegador solo, así
+   iOS lo deriva a la app vía Universal Link). Acá solo copiamos y marcamos,
+   sin tocar la navegación. */
+function prepOpen(id){
+  copyText("d_"+id);
+  if(EDIT.status[id]==="none"){
+    EDIT.status[id]="listed";
+    if(!EDIT.listedAt) EDIT.listedAt=Date.now();
+    dbPut(EDIT).then(()=>{
+      const card=$("#mk_"+id);
+      if(card){ const btns=card.querySelectorAll(".statusrow button"); if(btns[1]) btns[1].classList.add("act-listed"); }
+    });
+  }
+  toast("Abriendo "+(MARKET_BY[id]||{}).name+" · descripción copiada");
+}
+window.prepOpen=prepOpen;
 
 async function setStatus(id,st){
   const prev=EDIT.status[id];
