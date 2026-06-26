@@ -1,6 +1,6 @@
 /* CrossList service worker — cachea el app-shell para que funcione offline.
    Los datos (artículos + fotos) viven en IndexedDB, no acá. */
-const CACHE = "crosslist-v2";
+const CACHE = "crosslist-v3";
 const SHELL = [
   "./",
   "./index.html",

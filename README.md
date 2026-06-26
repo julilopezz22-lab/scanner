@@ -18,6 +18,13 @@ y Facebook Marketplace**. Pensada para ser rápida y funcionar offline.
   cuidado) y los insertás con un toque.
 - 📤 **Compartir fotos**: mandás las fotos del artículo directo al selector del celu
   (Depop, Instagram, WhatsApp…) o las descargás al rollo.
+- 💵 **Ganancia estimada por plataforma**: descuenta la comisión aproximada de cada una
+  (eBay ~13%+$0.30, Poshmark 20% / $2.95, Mercari ~13%+$0.50, Depop ~3.3%+$0.45, Vinted y
+  Facebook 0) y te muestra cuánto te queda en mano.
+- ⧉ **Duplicar artículo**: clonás una publicación para cargar variantes (otro talle/color)
+  en segundos.
+- ⏰ **Recordatorio de bajar precio**: avisa cuando un artículo lleva +7 días publicado sin
+  venderse.
 - 📋 **Copiar con un toque** título y descripción, y **abrir cada app** en la pantalla de
   "crear publicación".
 - 🔄 **Tracking de estado** por plataforma: *sin publicar / publicado / vendido*.

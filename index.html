@@ -132,6 +132,12 @@
   .banner{background:#16162A;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;
     color:var(--mut);line-height:1.6;margin-bottom:14px}
   .sectitle{font-size:11px;color:var(--mut2);text-transform:uppercase;letter-spacing:.6px;margin:18px 0 8px;font-weight:700}
+  .payout{background:#0E1F14;border:1px solid #00C85333;border-radius:9px;padding:8px 11px;font-size:12px;
+    color:#9FE0B8;margin-top:8px}
+  .payout b{color:var(--ok);font-size:14px}
+  .payout span{color:var(--mut);font-weight:500}
+  .payout.free{background:#0E1A2A;border-color:#5B8CFF33;color:#A8C4E8}
+  .payout.free b{color:var(--pri)}
   .tplrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
   .tplchip{background:var(--panel);border:1px solid var(--line);color:#A8A8D0;border-radius:999px;
     padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer}
@@ -263,10 +269,37 @@ function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("sh
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
 function money(n){ const v=parseFloat(n); return isNaN(v)?"—":"$"+v.toFixed(2); }
 
-/* Completa campos nuevos (Depop, medidas) en artículos viejos sin romperlos. */
+/* Completa campos nuevos (Depop, medidas, fecha de publicación) en artículos
+   viejos sin romperlos. */
 function ensure(it){ if(!it) return it; if(!it.status) it.status={};
   for(const m of MARKETS) if(!(m.id in it.status)) it.status[m.id]="none";
-  if(it.measurements==null) it.measurements=""; return it; }
+  if(it.measurements==null) it.measurements="";
+  if(it.listedAt===undefined){ const anyLive=MARKETS.some(m=>it.status[m.id]==="listed");
+    it.listedAt=anyLive?(it.createdAt||Date.now()):null; }
+  return it; }
+
+/* Días desde un timestamp (para el recordatorio de bajar precio). */
+const STALE_DAYS=7;
+function daysSince(ts){ return ts?Math.floor((Date.now()-ts)/86400000):0; }
+
+/* ===================== Comisiones y ganancia estimada por plataforma =====================
+   Valores aproximados (cambian por país/promos). Sirven para comparar, no son exactos.
+   - eBay: ~13% + $0.30   - Poshmark: $2.95 fijo si <$15, si no 20%
+   - Mercari: 10% + proc. ~2.9%+$0.50   - Depop: solo proc. ~3.3%+$0.45 (sin fee de venta US)
+   - Vinted: 0 (lo paga el comprador)   - Facebook: 0 en persona (efectivo)                */
+function estFee(price,m){
+  const p=parseFloat(price)||0; if(!p) return 0;
+  switch(m.id){
+    case "ebay":     return p*0.13+0.30;
+    case "poshmark": return p<15?2.95:p*0.20;
+    case "mercari":  return p*0.10+(p*0.029+0.50);
+    case "depop":    return p*0.033+0.45;
+    case "vinted":   return 0;
+    case "facebook": return 0;
+    default:         return 0;
+  }
+}
+function payout(price,m){ const p=parseFloat(price)||0; return Math.max(0,p-estFee(p,m)); }
 
 /* dataURL → File, para poder compartir las fotos al selector del sistema. */
 function dataURLtoFile(d,name){ const [h,b]=d.split(","); const mime=(h.match(/:(.*?);/)||[])[1]||"image/jpeg";
@@ -361,7 +394,7 @@ function setTab(t){
 document.querySelectorAll(".nav button").forEach(b=>b.addEventListener("click",()=>setTab(b.dataset.tab)));
 
 function blankItem(){
-  return { id:uid(), createdAt:Date.now(), photos:[], title:"", brand:"", category:"",
+  return { id:uid(), createdAt:Date.now(), listedAt:null, photos:[], title:"", brand:"", category:"",
     size:"", color:"", condition:"", price:"", origPrice:"", description:"", keywords:"", measurements:"",
     status:Object.fromEntries(MARKETS.map(m=>[m.id,"none"])) };
 }
@@ -401,6 +434,8 @@ async function renderList(){
           ${sold?`<span class="pill" style="background:#00C85320;color:var(--ok)">✓ Vendido</span>`
                 :live?`<span class="pill" style="background:#5B8CFF20;color:var(--pri)">● ${live} activa${live>1?"s":""}</span>`
                 :`<span class="pill" style="background:#ffffff10;color:var(--mut)">Borrador</span>`}
+          ${(it.listedAt && live>0 && !sold && daysSince(it.listedAt)>=STALE_DAYS)
+            ? `<span class="pill" style="background:#FF910020;color:var(--warn)">⏰ ${daysSince(it.listedAt)}d · bajá precio</span>` : ""}
         </div>
         <div class="chips">${MARKETS.map(m=>{
           const s=it.status[m.id];
@@ -545,8 +580,14 @@ async function openItem(id){
         <span>● <b style="color:var(--pri)">${live}</b> activa${live!==1?"s":""}</span>
         <span>✓ <b style="color:var(--ok)">${sold}</b> vendida${sold!==1?"s":""}</span>
       </div>
-      <button class="btn btn-sec btn-sm" style="margin-top:12px" onclick="editCurrent()">✏️ Editar datos</button>
-    </div>`;
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-sec btn-sm" style="flex:1" onclick="editCurrent()">✏️ Editar</button>
+        <button class="btn btn-sec btn-sm" style="flex:1" onclick="dupItem('${it.id}')">⧉ Duplicar</button>
+      </div>
+    </div>
+    ${(it.listedAt && live>0 && !sold && daysSince(it.listedAt)>=STALE_DAYS)
+      ? `<div class="banner" style="border-color:#FF910055;background:#1F170E;color:var(--warn)">⏰ Lleva <b>${daysSince(it.listedAt)} días</b> publicado sin venderse. Probá bajar el precio ~10–15% o renovar las fotos para reactivar el interés.</div>`
+      : ""}`;
 
   if(it.photos&&it.photos.length){
     html+=`<div class="out-label">Fotos
@@ -563,6 +604,10 @@ async function openItem(id){
     const title=buildTitle(it,m), desc=buildDesc(it,m);
     const tc=title.length>m.titleMax?"count-bad":"count-ok";
     const st=it.status[m.id];
+    const pr=parseFloat(it.price)||0, fee=estFee(it.price,m), net=payout(it.price,m);
+    const payHtml = !pr ? "" : (fee>0
+      ? `<div class="payout">💵 Te queda aprox: <b>${money(net)}</b> <span>· comisión est. −${money(fee)}</span></div>`
+      : `<div class="payout free">💵 Te queda aprox: <b>${money(net)}</b> <span>· ${m.id==="facebook"?"sin comisión (en persona)":"sin comisión de venta"}</span></div>`);
     html+=`<div class="mk" id="mk_${m.id}">
       <div class="mk-head" onclick="toggleMk('${m.id}')">
         <div class="mk-ic" style="background:${m.color}">${m.ic}</div>
@@ -572,6 +617,7 @@ async function openItem(id){
         <span class="caret">▾</span>
       </div>
       <div class="mk-body">
+        ${payHtml}
         <div class="out-label">Título <span class="${tc}">${title.length}/${m.titleMax}</span></div>
         <div class="out-block" id="t_${m.id}">${esc(title)}</div>
         <button class="copybtn" style="margin-top:8px" onclick="copyText('t_${m.id}')">📋 Copiar título</button>
@@ -596,6 +642,18 @@ window.openItem=openItem;
 window.editCurrent=()=>{ TAB="new"; renderEditor(); $("#hsub").textContent="Editar artículo"; };
 window.toggleMk=id=>$("#mk_"+id).classList.toggle("open");
 
+/* Duplica un artículo (para cargar variantes: otro talle/color rápido). */
+async function dupItem(id){
+  const src=ensure(await dbGet(id)); if(!src) return;
+  const copy={ ...src, id:uid(), createdAt:Date.now(), listedAt:null,
+    title:(src.title||"Artículo")+" (copia)",
+    photos:[...(src.photos||[])],
+    status:Object.fromEntries(MARKETS.map(m=>[m.id,"none"])) };
+  await dbPut(copy); toast("Duplicado ✓");
+  CURRENT=copy.id; EDIT=copy; TAB="new"; renderEditor(); $("#hsub").textContent="Editar copia";
+}
+window.dupItem=dupItem;
+
 function copyText(elId){
   const txt=$("#"+elId).textContent;
   const done=()=>toast("Copiado ✓");
@@ -612,7 +670,8 @@ async function openMarket(id){
   // copiamos la descripción al portapapeles para pegarla apenas abra la app
   copyText("d_"+id);
   // si todavía no estaba marcado, lo pasamos a "publicado"
-  if(EDIT.status[id]==="none"){ EDIT.status[id]="listed"; await dbPut(EDIT);
+  if(EDIT.status[id]==="none"){ EDIT.status[id]="listed";
+    if(!EDIT.listedAt) EDIT.listedAt=Date.now(); await dbPut(EDIT);
     $("#mk_"+id).querySelectorAll(".statusrow button")[1].classList.add("act-listed"); }
   window.open(m.url,"_blank","noopener");
   toast("Descripción copiada · pegala en "+m.name);
@@ -621,7 +680,9 @@ window.openMarket=openMarket;
 
 async function setStatus(id,st){
   const prev=EDIT.status[id];
-  EDIT.status[id]=st; await dbPut(EDIT);
+  EDIT.status[id]=st;
+  if(st==="listed" && !EDIT.listedAt) EDIT.listedAt=Date.now();
+  await dbPut(EDIT);
   // si marcás VENDIDO y hay otras activas → recordatorio para dar de baja
   if(st==="sold"){
     const others=MARKETS.filter(m=>m.id!==id && EDIT.status[m.id]==="listed");
