@@ -187,6 +187,12 @@
   <div class="modal-bg" id="menuModal">
     <div class="modal">
       <h3>Menú</h3>
+
+      <label for="aiKey" style="margin-top:0">✨ Clave de IA (Anthropic)</label>
+      <input id="aiKey" type="password" placeholder="sk-ant-..." autocomplete="off" />
+      <button class="btn btn-pri" id="btnSaveKey" style="margin-top:8px;margin-bottom:6px">Guardar clave</button>
+      <div class="hint" style="margin-bottom:16px">Se guarda <b>solo en este dispositivo</b>. Conseguila en console.anthropic.com → API Keys. Tiene un costo por uso (centavos por foto). Es lo que activa el botón ✨ del editor.</div>
+
       <p>Tus artículos se guardan en este dispositivo. Hacé copias de seguridad seguido.</p>
       <button class="btn btn-sec" id="btnExport" style="margin-bottom:10px">⬇️ Exportar copia (.json)</button>
       <label for="importFile" class="btn btn-sec" style="margin-bottom:10px;cursor:pointer">⬆️ Importar copia</label>
@@ -337,6 +343,100 @@ function payout(price,m){ const p=parseFloat(price)||0; return Math.max(0,p-estF
 function dataURLtoFile(d,name){ const [h,b]=d.split(","); const mime=(h.match(/:(.*?);/)||[])[1]||"image/jpeg";
   const bin=atob(b); const u=new Uint8Array(bin.length);
   for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return new File([u],name,{type:mime}); }
+
+/* ===================== Generador con IA (Claude vision) =====================
+   Usa TU clave de Anthropic, guardada solo en este dispositivo. Llama a la API
+   directo desde el navegador (header anthropic-dangerous-direct-browser-access).
+   La clave es tuya y nunca sale del celu salvo hacia api.anthropic.com.        */
+const AI_KEY="crosslist-anthropic-key";
+function getApiKey(){ return (localStorage.getItem(AI_KEY)||"").trim(); }
+function setApiKey(k){ localStorage.setItem(AI_KEY,(k||"").trim()); }
+
+async function aiGenerate(){
+  const key=getApiKey();
+  if(!key){ toast("Falta tu clave de IA — agregala en el menú ⋯"); openMenuModal(); return; }
+  if(!EDIT.photos || !EDIT.photos.length){ toast("Agregá al menos una foto primero"); return; }
+  readEditor();
+  const btn=$("#btnAI");
+  if(btn){ btn.disabled=true; btn.dataset.t=btn.textContent; btn.textContent="✨ Analizando la foto…"; }
+  try{
+    const dataUrl=EDIT.photos[0];
+    const m=dataUrl.match(/^data:(.*?);base64,(.*)$/);
+    const mediaType=(m&&m[1])||"image/jpeg";
+    const b64=(m&&m[2])||dataUrl.split(",")[1];
+    const cats=CATEGORIES.map(c=>c.en), conds=CONDITIONS.map(c=>c.en);
+    const schema={ type:"object", properties:{
+        title:{type:"string"}, brand:{type:"string"},
+        category:{type:"string", enum:["",...cats]},
+        condition:{type:"string", enum:["",...conds]},
+        color:{type:"string"}, size:{type:"string"},
+        description:{type:"string"}, keywords:{type:"array", items:{type:"string"}},
+        suggested_price_min:{type:"number"}, suggested_price_max:{type:"number"}
+      },
+      required:["title","brand","category","condition","color","size","description","keywords","suggested_price_min","suggested_price_max"],
+      additionalProperties:false };
+    const prompt=
+      "You are an expert reseller. Look at the product photo and produce a second-hand marketplace listing IN ENGLISH (for eBay/Poshmark/Mercari/Depop/Vinted).\n"+
+      "- title: concise and searchable (brand + item + key attributes).\n"+
+      "- brand: best guess from the photo; empty string if unclear.\n"+
+      "- category: choose EXACTLY one of: "+cats.join(", ")+". Use \"Other\" if unsure.\n"+
+      "- condition: choose EXACTLY one of: "+conds.join(", ")+".\n"+
+      "- color, size: only if visible; empty string otherwise.\n"+
+      "- description: 2-4 honest sentences (features, material, notable details).\n"+
+      "- keywords: 5-8 short search terms, no # sign.\n"+
+      "- suggested_price_min / suggested_price_max: realistic USD resale range, as numbers.\n"+
+      "Only use what you can see in the photo. Do not invent details.";
+    const r=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{
+        "content-type":"application/json",
+        "x-api-key":key,
+        "anthropic-version":"2023-06-01",
+        "anthropic-dangerous-direct-browser-access":"true"
+      },
+      body:JSON.stringify({
+        model:"claude-opus-4-8",
+        max_tokens:1500,
+        messages:[{role:"user",content:[
+          {type:"image",source:{type:"base64",media_type:mediaType,data:b64}},
+          {type:"text",text:prompt}
+        ]}],
+        output_config:{format:{type:"json_schema",schema:schema}}
+      })
+    });
+    if(!r.ok){
+      if(r.status===401) toast("Clave inválida — revisala en el menú ⋯");
+      else if(r.status===429) toast("La IA está ocupada, probá de nuevo");
+      else toast("Error de IA ("+r.status+")");
+      console.error("AI error", await r.text());
+      return;
+    }
+    const data=await r.json();
+    if(data.stop_reason==="refusal"){ toast("La IA no pudo analizar esta foto"); return; }
+    const block=(data.content||[]).find(b=>b.type==="text");
+    let out; try{ out=JSON.parse(block.text); }catch(_){ toast("Respuesta de IA inválida"); return; }
+    applyAI(out);
+    const lo=out.suggested_price_min, hi=out.suggested_price_max;
+    toast((lo!=null&&hi!=null)?("✨ Listo · sugerido $"+lo+"–$"+hi):"✨ Listo — revisá y ajustá");
+  }catch(e){
+    toast("No se pudo conectar con la IA");
+    console.error(e);
+  }finally{
+    const b=$("#btnAI"); if(b){ b.disabled=false; b.textContent=b.dataset.t||"✨ Generar con IA desde la foto"; }
+  }
+}
+/* Rellena los campos vacíos del editor con lo que devolvió la IA (no pisa lo
+   que ya escribiste). */
+function applyAI(o){
+  const fill=(sel,val)=>{ const el=$(sel); if(el && val && !el.value.trim()) el.value=val; };
+  fill("#f_title",o.title); fill("#f_brand",o.brand); fill("#f_color",o.color); fill("#f_size",o.size);
+  fill("#f_desc",o.description);
+  if(o.keywords && o.keywords.length){ const k=$("#f_kw"); if(k && !k.value.trim()) k.value=o.keywords.join(", "); }
+  if(o.suggested_price_max!=null){ const p=$("#f_price"); if(p && !p.value.trim()) p.value=String(o.suggested_price_max); }
+  const cat=$("#f_cat"); if(cat && !cat.value && o.category) cat.value=o.category;
+  const cond=$("#f_cond"); if(cond && !cond.value && o.condition) cond.value=o.condition;
+}
+window.aiGenerate=aiGenerate;
 
 /* ===================== Plantillas de descripción (localStorage) ===================== */
 const TPL_KEY="crosslist-templates";
@@ -493,6 +593,9 @@ function renderEditor(){
     <div class="gallery" id="gallery"></div>
     <input type="file" id="photoIn" accept="image/*" multiple class="hidden" />
 
+    <button class="btn" id="btnAI" style="margin-top:4px;background:linear-gradient(135deg,#7C3AED,#A855F7);color:#fff">✨ Generar con IA desde la foto</button>
+    <div class="hint">La IA mira la 1ª foto y completa título, descripción, precio sugerido y más (en inglés). Necesita tu clave (menú ⋯).</div>
+
     <label for="f_title">Título del artículo *</label>
     <input id="f_title" placeholder="Ej: Campera de jean oversize" value="${esc(it.title)}">
 
@@ -543,6 +646,7 @@ function renderEditor(){
   renderGallery();
   renderTplRow();
   $("#photoIn").addEventListener("change",onPhotos);
+  $("#btnAI").addEventListener("click",aiGenerate);
   $("#btnSave").addEventListener("click",saveEditor);
 }
 
@@ -879,9 +983,12 @@ async function renderStats(){
 }
 
 /* ===================== Menú: export / import ===================== */
-$("#btnMenu").addEventListener("click",()=>$("#menuModal").classList.add("show"));
+function openMenuModal(){ const k=$("#aiKey"); if(k) k.value=getApiKey(); $("#menuModal").classList.add("show"); }
+window.openMenuModal=openMenuModal;
+$("#btnMenu").addEventListener("click",openMenuModal);
 $("#btnCloseMenu").addEventListener("click",()=>$("#menuModal").classList.remove("show"));
 $("#menuModal").addEventListener("click",e=>{ if(e.target.id==="menuModal") e.target.classList.remove("show"); });
+$("#btnSaveKey").addEventListener("click",()=>{ setApiKey($("#aiKey").value); toast("Clave guardada ✓"); });
 
 // Plantillas
 $("#tplSave").addEventListener("click",()=>{

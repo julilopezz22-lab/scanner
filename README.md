@@ -6,6 +6,9 @@ y Facebook Marketplace**. Pensada para ser rápida y funcionar offline.
 
 ## Qué hace
 
+- ✨ **Generador con IA**: sacás una foto y la IA (Claude) completa título, descripción,
+  marca, categoría, estado y un **precio sugerido** — todo en inglés. Usás tu propia clave
+  de Anthropic, guardada solo en tu dispositivo (se configura en el menú ⋯).
 - 📷 **Fotos**: subís varias, se comprimen solas y se guardan en el dispositivo.
 - ✍️ **Un solo formulario**: título, marca, talle, color, estado, precio, **medidas**,
   descripción y palabras clave.
